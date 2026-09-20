@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinClue 金线索 · 2026-09-18</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}
+:root{
+ --bg:#f8f4ed;--card:#fffdf9;--line:#e7ded1;--ink:#2a2320;--dim:#6b6058;
+ --faint:#9d928a;
+ --accent:#9e3d47;--accent-bg:#f7eae9;--accent-line:#e6cdcc;--accent-ink:#8e3741;
+ --gold:#c9a227;--gold-bg:#f8f0d8;--gold-line:#e8d7a8;--gold-ink:#8a6c12;
+ --bar-paper-bg:#f6efe3;--bar-paper-line:#e6d9c4;--bar-paper-ink:#8a6a44;
+ --bar-real-bg:#f7eae9;--bar-real-line:#e6cdcc;--bar-real-ink:#8e3741;
+ --pill:#f5efe6;--pill-line:#e6dccd;
+ --serif:Georgia,"Songti SC","Noto Serif CJK SC","SimSun",serif;
+ --card-r:12px;
+ --shadow:0 1px 2px rgba(90,60,40,.05),0 10px 24px -14px rgba(90,60,40,.16);
+}
+@media(prefers-color-scheme:dark){:root{
+ --bg:#1a1614;--card:#221d1a;--line:#3b332e;--ink:#f2ece5;--dim:#b8aca1;
+ --faint:#8a7f76;
+ --accent:#d29aa0;--accent-bg:#302325;--accent-line:#4d383b;--accent-ink:#e0b2b7;
+ --gold:#d9b64a;--gold-bg:#2b2415;--gold-line:#473b1e;--gold-ink:#e0c169;
+ --bar-paper-bg:#282119;--bar-paper-line:#42382a;--bar-paper-ink:#cbb493;
+ --bar-real-bg:#302325;--bar-real-line:#4d383b;--bar-real-ink:#e0b2b7;
+ --pill:#282220;--pill-line:#3d3430;
+}}
+body{font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+ background:var(--bg);color:var(--ink);padding:22px 18px 60px}
+.wrap{max-width:1560px;margin:0 auto}
+a{color:var(--accent)}
+/* 顶栏走中国风 + 报纸报头：居中排，字号拉开，上下各一道线（上细下朱红）。
+   红只留在下面那道 2px 线上 —— 「红太红」的解法是面积，不是色相。 */
+header{text-align:center;padding:13px 0 14px;border-top:1px solid var(--line);
+ border-bottom:2px solid var(--accent);margin-bottom:2px}
+header .logo{display:block;color:var(--gold);font-size:19px;line-height:1;margin-bottom:7px}
+.hd{min-width:0}
+h1{font-family:var(--serif);font-weight:700;font-size:27px;color:var(--ink);
+ letter-spacing:.5px;line-height:1.15;display:flex;align-items:baseline;
+ justify-content:center;gap:10px;flex-wrap:wrap}
+h1 .cn{font-size:14px;font-weight:500;color:var(--accent);letter-spacing:3px}
+.archive{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.archive a{font-size:12px;padding:3px 10px;border-radius:11px;background:var(--pill);
+ border:1px solid var(--pill-line);color:var(--dim);text-decoration:none}
+.archive a:hover{border-color:var(--accent-line)}
+.archive a.cur{background:var(--accent-bg);border-color:var(--accent-line);
+ color:var(--accent);font-weight:600}
+h2{font-family:var(--serif);font-size:16px;margin:26px 0 10px}
+.badge{font-size:11px;padding:2px 8px;border-radius:9px;background:var(--pill);
+ color:var(--dim);border:1px solid var(--pill-line);white-space:nowrap}
+.badge.lv-pattern{background:var(--accent-bg);color:var(--accent-ink);border-color:var(--accent-line)}
+.badge.lv-implication{background:var(--gold-bg);color:var(--gold-ink);border-color:var(--gold-line)}
+.badge.none{background:transparent;color:var(--faint)}
+.na{color:var(--faint)}
+.muted{color:var(--faint);font-size:12.5px}
+/* ── 洞察：tab 切换（纯 CSS，无 JS） ──
+   radio + label + :checked ~ 兄弟选择器。file:// 下 service worker / fetch 都不可用，
+   所以不引 JS；六个面板始终在 DOM 里，只是 display 切换。 */
+/* 隐藏 radio。用 1px+opacity 而不是 left:-9999px —— 负向偏移在部分安卓浏览器上
+   会撑出横向滚动。radio 仍可 Tab 聚焦、方向键切换，键盘操作不受影响。 */
+.tabs>input{position:absolute;width:1px;height:1px;opacity:0;margin:0}
+.tabbar{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--line);
+ padding-bottom:0;margin-top:12px}
+.tabbar label{cursor:pointer;font-size:12.5px;padding:6px 13px;border-radius:9px 9px 0 0;
+ background:var(--pill);border:1px solid var(--pill-line);border-bottom:none;
+ color:var(--dim);display:inline-flex;align-items:center;gap:6px;
+ user-select:none;margin-bottom:-1px}
+.tabbar label:hover{color:var(--ink)}
+/* 没信号的主题在 tab 上就要看得出来 —— 否则「六个主题固定占位」用来暴露
+   「哪个主题这期没信号」的价值就没了。 */
+.tabbar label.empty{opacity:.55}
+.tabbar label.empty::after{content:"无信号";font-size:10px;color:var(--faint);
+ background:var(--pill);border:1px solid var(--pill-line);border-radius:5px;
+ padding:0 4px}
+.panels{margin-top:14px}
+.panel{display:none;background:var(--card);border:1px solid var(--line);
+ border-radius:var(--card-r);padding:15px 17px;box-shadow:var(--shadow)}
+.tc-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tc-name{font-weight:600;font-size:14.5px;font-family:var(--serif)}
+.tc-h .ev{margin-left:auto;font-size:11px;color:var(--faint)}
+.finding{font-size:13.5px;line-height:1.68;margin:10px 0}
+.panel .tc-f{margin-top:12px}
+.tc-d summary{cursor:pointer;font-size:12px;color:var(--accent);list-style:none}
+.tc-d summary::-webkit-details-marker{display:none}
+.tc-d summary::before{content:"▸ ";color:var(--faint)}
+.tc-d[open] summary::before{content:"▾ "}
+.tc-d dl{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
+.tc-d dt{font-size:11.5px;color:var(--faint);margin-top:9px}
+.tc-d dt:first-child{margin-top:0}
+.tc-d dd{font-size:13px;margin-top:2px;white-space:pre-wrap}
+.tc-f{margin-top:auto;font-size:11px;color:var(--faint)}
+/* ── 事实卡片：每个来源一张 ── */
+/* min(500px,100%) 而不是 500px —— 手机宽度不足 500px 时，写死的 500px 下限
+   会直接撑出横向滚动条。 */
+.facts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(500px,100%),1fr));gap:12px}
+.fc{background:var(--card);border:1px solid var(--line);border-radius:var(--card-r);
+ padding:13px 15px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:11px}
+.fc-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fc-h .co{font-weight:600;font-size:14.5px;font-family:var(--serif)}
+.fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
+.fc-f{display:flex;gap:7px;font-size:12.5px;min-width:0}
+.fc-k{color:var(--faint);font-size:11.5px;flex:none;padding-top:1px}
+.fc-v{min-width:0;word-break:break-word}
+.fc-v.hi{color:var(--accent);font-weight:600}
+.fc-f2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:auto;
+ padding-top:10px;border-top:1px dashed var(--line)}
+.fc-tags{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.fc-src{margin-left:auto;font-size:12px;white-space:nowrap}
+.tag{display:inline-block;font-size:10.5px;color:var(--dim);background:var(--pill);
+ border:1px solid var(--pill-line);border-radius:7px;padding:1px 6px}
+/* 门槛对照在卡片里改为上下叠放：卡片宽度撑不起并排两列长文本，
+   并排会把 recruiting_bar 那种 200+ 字的段落挤成一条竖线。
+   颜色区分（蓝＝书面 / 琥珀＝真实）保留 —— 那才是对照的锚点。 */
+.fc .bars{grid-template-columns:1fr}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.bars{grid-template-columns:1fr}}
+/* 两块门槛：书面＝浅赭底（纸面上的条件），真实＝藏红实底反白字。
+   两者共一条金色左侧边 —— 把「这还是同一组对照」这个意思留住，
+   同时实底那块一眼就是结论所在。 */
+.bar{background:var(--bar-paper-bg);border:1px solid var(--bar-paper-line);
+ border-left:3px solid var(--gold);border-radius:9px;padding:9px 11px}
+.bar h4{font-size:11px;color:var(--bar-paper-ink);font-weight:600;margin-bottom:4px}
+.bar.actual{background:var(--bar-real-bg);border-color:var(--bar-real-line);
+ border-left-color:var(--accent)}
+.bar.actual h4{color:var(--bar-real-ink)}
+.bar p{font-size:12.5px;line-height:1.62;white-space:pre-wrap}
+.exp{margin-top:9px}
+.exp summary{cursor:pointer;font-size:11.5px;color:var(--accent);list-style:none}
+.exp summary::-webkit-details-marker{display:none}
+.exp summary::before{content:"▸ "}
+.exp[open] summary::before{content:"▾ "}
+.exp p{font-size:12.5px;line-height:1.62;margin-top:6px;white-space:pre-wrap;
+ color:var(--dim)}
+footer{margin-top:34px;padding-top:12px;border-top:1px solid var(--line);
+ font-size:11.5px;color:var(--faint);display:flex;gap:14px;flex-wrap:wrap}
+/* ── 手机端 ──
+   原来完全没有断点：事实卡写死 500px 下限会撑出横向滚动，字号也按桌面压到 12.5px。
+   这里按手机阅读习惯调：单列、正文放大到 15px、行高放宽、触控目标（tab / 链接）
+   撑到至少 ~40px 高，左右留白收窄把宽度让给正文。 */
+@media(max-width:640px){
+ body{padding:14px 12px 48px;font-size:15px;line-height:1.7}
+ .wrap{max-width:none}
+ header{padding:11px 0 12px}
+ header .logo{font-size:17px;margin-bottom:5px}
+ h1{font-size:22px;gap:8px}
+ h1 .cn{font-size:13px;letter-spacing:2px}
+ .archive{gap:6px;margin:12px 0 2px}
+ .archive a{font-size:12.5px;padding:6px 11px}
+ h2{font-size:17px;margin:22px 0 10px}
+ /* insight tab：手机上让它换行铺开，而不是横向滑动 —— 只有六个且都是短标签，
+    换行能全部看见；滑动的写法会把一半 tab 藏在屏幕外，看起来像坏了。 */
+ .tabbar{flex-wrap:wrap;gap:5px;border-bottom:none;padding-bottom:0}
+ .tabbar label{font-size:13px;padding:9px 12px;margin-bottom:0;border-radius:8px;
+  border-bottom:1px solid var(--pill-line)}
+ .panel{padding:14px 15px;border-radius:10px}
+ .finding{font-size:15px;line-height:1.75}
+ .tc-name{font-size:15px}
+ .tc-d dd,.tc-d dt{font-size:14px}
+ .facts-grid{grid-template-columns:1fr;gap:10px}
+ .fc{padding:13px 14px;border-radius:10px}
+ .fc-h .co{font-size:15px}
+ /* 岗位/城市/薪资/强度：手机上仍保持两列，但缩小标签列宽、放大取值 */
+ .fc-grid{grid-template-columns:1fr 1fr;gap:8px 10px}
+ .fc-f{font-size:14px}
+ .fc-k{font-size:12px}
+ .bar{padding:10px 12px}
+ .bar h4{font-size:12px}
+ .bar p,.exp p{font-size:14px;line-height:1.7}
+ .exp summary,.tc-d summary{font-size:13px;padding:3px 0}
+ .fc-f2{padding-top:11px}
+ .fc-src{font-size:13px}
+ .tag{font-size:11px;padding:2px 7px}
+ footer{font-size:12px;gap:8px;flex-direction:column}
+}
+#tab-recruiting_bar:checked~.tabbar label[for="tab-recruiting_bar"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-recruiting_bar:checked~.panels #panel-recruiting_bar{display:block}#tab-wlb:checked~.tabbar label[for="tab-wlb"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-wlb:checked~.panels #panel-wlb{display:block}#tab-salary:checked~.tabbar label[for="tab-salary"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-salary:checked~.panels #panel-salary{display:block}#tab-hc_trend:checked~.tabbar label[for="tab-hc_trend"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-hc_trend:checked~.panels #panel-hc_trend{display:block}#tab-interview:checked~.tabbar label[for="tab-interview"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-interview:checked~.panels #panel-interview{display:block}#tab-return_offer:checked~.tabbar label[for="tab-return_offer"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-return_offer:checked~.panels #panel-return_offer{display:block}@media(max-width:640px){#tab-recruiting_bar:checked~.tabbar label[for="tab-recruiting_bar"]{background:var(--accent-bg)}#tab-wlb:checked~.tabbar label[for="tab-wlb"]{background:var(--accent-bg)}#tab-salary:checked~.tabbar label[for="tab-salary"]{background:var(--accent-bg)}#tab-hc_trend:checked~.tabbar label[for="tab-hc_trend"]{background:var(--accent-bg)}#tab-interview:checked~.tabbar label[for="tab-interview"]{background:var(--accent-bg)}#tab-return_offer:checked~.tabbar label[for="tab-return_offer"]{background:var(--accent-bg)}}</style></head><body><div class="wrap">
+<header><span class="logo">★</span><div class="hd">
+<h1>FinClue <span class="cn">金线索</span></h1>
+</div></header>
+<nav class="archive"><a href="2026-09-20.html">2026-09-20</a><a href="2026-09-18.html" class="cur">2026-09-18</a><a href="2026-09-13.html">2026-09-13</a></nav>
+<h2>本期洞察</h2>
+<div class="tabs"><input type="radio" name="ttab" id="tab-recruiting_bar" checked><input type="radio" name="ttab" id="tab-wlb"><input type="radio" name="ttab" id="tab-salary"><input type="radio" name="ttab" id="tab-hc_trend"><input type="radio" name="ttab" id="tab-interview"><input type="radio" name="ttab" id="tab-return_offer"><div class="tabbar"><label for="tab-recruiting_bar">招聘 Bar</label><label for="tab-wlb">WLB</label><label for="tab-salary">薪资</label><label for="tab-hc_trend">HC 趋势</label><label for="tab-interview">面试特征</label><label for="tab-return_offer">留用机会</label></div><div class="panels"><section class="panel" id="panel-recruiting_bar"><div class="tc-h"><span class="tc-name">招聘 Bar</span><span class="badge lv-pattern">Pattern</span><span class="ev">8 条支撑</span></div><p class="finding">同一细分赛道内部出现「入门实习 bar 低、正式/头部机构 bar 极高」的双轨现象：量化入门实习（金工组）仅要求高数/线代/概统+Python 够用，但量化暑期/正职的硬卡点是学历与竞赛（财经二本+985硕+三段量化实习仍 0 面邀，9本top2硕亦 0 offer）；一级买方实习对垂直经历弹性较大（某9本零一级实习拿到 PE 一面、纯商科靠内推进 PEVC），而二级卖方（债承）对垂直实习与在校时间冲突更敏感（无债券实习+有课被拒）。</p><details class="tc-d"><summary>展开分析</summary><dl><dt>为什么重要</dt><dd>候选人常见的误判是把「某一类金融岗位」当成单一门槛，实际上同一赛道的实习入口与正式入口之间存在数量级差异，用错标尺会同时浪费投递量和准备时间。</dd><dt>行业含义</dt><dd>量化机构以学历/竞赛作为高信噪比初筛工具，反映其无法在面试中低成本验证策略产出；一级买方岗位稀缺导致候选池背景高度集中在头部院校，筛选事实上前移到「能否拿到内推/信息差」环节。</dd><dt>对你的含义</dt><dd>先做赛道自评：走量化 → 学历/竞赛/单段可复用框架优先级高于刷实习段数；走一级 → 把精力放在内推与项目叙事（研究逻辑、壁垒、竞对）；走债承/固收 → 必须尽早拿到垂直实习并清空在校课程冲突。</dd><dt>个例</dt><dd>量化求职经验帖（数学经济本科非top2，准备一年获外资HF+内资百亿offer），券商研究所金工组实习路径帖，外资PE 大四一面（某9本，零一级实习），PEVC 纯商科背景内推帖，某头部券商债承实习（无债券实习+有课，未通过），量化暑期 0 offer 帖（财经二本+985硕，三段量化实习），26 Summer 求职记录（小 FA 候选池含北大/耶鲁/杜克/上交），长江证券行研→量化转正帖（0 基础转量化）</dd><dt>完整分析</dt><dd>【Fact】新增 8 条事实涉及招聘门槛：①量化求职帖写明「不需要那么fancy的背景」，但列出时间序列/概统/随机过程/回归+CS算法+ML/DL+Python（会C++加分）的清单，作者非top2/3、准备一年后拿到外资HF与内资百亿全职；②金工组帖称第一份量化实习「数学编程够用就行」，路径为因子—模型—策略；③外资PE 一面候选人自述某9本大四、行研/银行/量化实习但零相关一级/PE 经历，仍获面试且自评「比较轻松」；④PEVC 帖称纯商科背景靠学长学姐内推进入一级机构，一年 PEVC 实习；⑤某头部券商债承实习者有一段行研、无债券实习、学校还有课，自述未通过；⑥量化暑期求职者财经二本+985工科硕+三段量化实习（含头部私募/头部券商）基本零面邀；⑦投行求职帖披露某小 FA 候选人池含 3 北大、2 耶鲁、杜克、上交；⑧长江证券帖称转量化时 coding 不强、0 基础，先海投进「量化训练营」初创才起步。
+
+【Pattern】三条重复模式：(a) 量化赛道双轨——入门实习 bar 显著低于正职/头部私募 bar；(b) 一级买方实习对垂直经历的要求有弹性，信息差/内推可部分替代履历；(c) 二级卖方（债承）对垂直实习与可投入时间的约束更硬。8 条事实中至少 3 条以上互相印证每个子模式。
+
+【Interpretation】（推测）量化用学历+竞赛做初筛，是因为策略产出无法在短面试中验证，机构只能选择高先验概率样本；一级买方岗位数极少，竞争者背景自然向头部院校收敛，「能不能拿到内推」先于「简历够不够好」；卖方承做类岗位日常强度大，对「能立刻上手且全时投入」的要求高于对背景的要求。
+
+【Implication】不要用统一标尺投递：目标量化则先评估学历/竞赛是否过初筛线，并把一段实习做成可复用框架而非堆段数；目标一级则把内推与项目叙事放在首位；目标债承/固收则优先解决「垂直实习+时间可投入」两项硬约束。</dd></dl></details><div class="tc-f">置信度 中</div></section><section class="panel" id="panel-wlb"><div class="tc-h"><span class="tc-name">WLB</span><span class="badge lv-pattern">Pattern</span><span class="ev">6 条支撑</span></div><p class="finding">工作强度呈明显两极分化：卖方/中介型岗位（港股IPO、券商行研、债承）被描述为 24 小时 oncall、每天换城市出差、财报季熬夜、项目多人少持续加班；量化私募实习则出现工作日 9:00-18:00 的固定工时描述。候选人侧出现明确的偏好分层，有求职者直接声明「wlb＞薪资≈成长性」并因此转向债券交易/中后台/泛体制方向。</p><details class="tc-d"><summary>展开分析</summary><dl><dt>为什么重要</dt><dd>WLB 已从「隐性福利」变成部分候选人的首要筛选变量，直接影响岗位选择与赛道切换决策，而不是入职后才后悔的次要因素。</dd><dt>行业含义</dt><dd>高强度集中在项目制、外部客户驱动型业务（IPO、行研、承做），其强度来自不可控的交付节奏；量化等技术驱动型岗位工时相对可预期，但代价是产出指标更硬（市场不好即可裁员）。</dd><dt>对你的含义</dt><dd>候选人在投递前应先明确 wlb 权重：若权重高，应主动排除项目制卖方实习、优先考虑量化/中后台/国企方向，并在面试反问环节直接问「出差频率」「周末工作形态」，不要靠入职后验证。</dd><dt>个例</dt><dd>港股IPO 香港团队实习（每天换城市出差，身体原因离职），长江证券行研实习（24小时oncall，财报季熬夜；最终转正的量化公司小而美），某头部券商债承实习（项目多人少，加班），某私募量化实习（工作日 9:00-18:00），26 Summer 求职帖（周末兼职摇酒「目前搁置，太忙了」），债券交易/中后台求职帖（追求 wlb＞薪资≈成长性，互联网强度不适应）</dd><dt>完整分析</dt><dd>【Fact】6 条含 WLB 信息的事实：①港股IPO 香港团队实习——出差频率极高、绝大多数情况每天换城市、周末常在项目地、随时有线上工作，作者因连续出差+赶论文身体不适主动交接离职，月薪近 1w；②长江证券行研实习——钱少事多、常到晚上才工作、mentor 期望 24 小时 oncall、财报季熬夜，而最终转正的量化公司被描述为氛围无敌；③某头部券商债承实习——急招、项目多人少、加班、前期全是底稿；④某私募量化实习——工作日 9:00-18:00（原文未提周末）；⑤26 Summer 求职者——工作日做 PE，本想周末兼职摇酒，「目前搁置，太忙了」；⑥债券交易/中后台求职者——自述互联网强度与心理压力都不适合，明确「wlb＞薪资≈成长性」。
+
+【Pattern】模式清晰但不单调：项目制卖方（IPO、行研、承做）在 6 条中占 4 条且全部为高强度描述，共性是不可控的交付节奏（客户/项目节点）与 24 小时可及性；技术驱动型（量化私募）出现固定工时描述；候选人侧出现主动以 WLB 为首要权重的自我分层。
+
+【Interpretation】（推测）强度差异的结构性原因是收入来源：卖方按项目收费，进度由客户和监管节点驱动，人力被当作可弹性伸缩的资源；量化按业绩分成，工时不是主要投入变量，产出指标（收益）才是，因此表现为「工时可控但淘汰机制更硬」。样本仅 6 条且多为实习生视角，方向存在强弱分歧，结论仅供方向性参考。
+
+【Implication】把 WLB 前置为筛选条件而非妥协项：优先排除项目制卖方实习；在面试反问环节明确问出差频率与周末形态；若已在高强度岗位，提前设定身体/精力的止损线（有明确因健康离职的案例）。</dd></dl></details><div class="tc-f">置信度 中</div></section><section class="panel" id="panel-salary"><div class="tc-h"><span class="tc-name">薪资</span><span class="badge lv-pattern">Pattern</span><span class="ev">4 条支撑</span></div><p class="finding">实习薪酬在赛道之间出现数量级落差：量化私募实习出现 1000 元/天的津贴，券商行研实习日薪 80 元以内（且「很多公司甚至没有实习工资」），港股IPO 实习为近 1w/月，另一头部券商债承实习仅说明「走人事、有实习薪资」未给数。同币种内日薪差距约 10 倍以上，但样本仅 4 条且单位不统一，不做跨币种折算或均值计算。</p><details class="tc-d"><summary>展开分析</summary><dl><dt>为什么重要</dt><dd>实习薪酬差距是赛道选择中最直接、最容易被量化比较的信号，但它同时对应完全不同的淘汰机制与技能折旧路径，不能单看数字做决策。</dd><dt>行业含义</dt><dd>量化把实习生津贴当作抢人工具（对应「基本不太招人、能进去算赶上了」的稀缺性），传统卖方实习薪酬被压至象征性水平，反映卖方实习的供给远大于需求、实习生本身视为可替代人力。</dd><dt>对你的含义</dt><dd>不要把实习日薪当作赛道优劣的唯一判据：量化高日薪对应「能否做出收益」的硬指标与随时裁员风险；传统卖方低薪实习的价值在于换取垂直履历与留用/转正通道，应比较「日薪+转正概率+技能可迁移性」的组合。</dd><dt>个例</dt><dd>某私募量化实习（1000元/天），长江证券行研实习（日薪80以内，很多公司无薪），港股IPO 香港团队实习（近1w/月），某头部券商债承实习（走人事，有实习薪资，未披露数额）</dd><dt>完整分析</dt><dd>【Fact】4 条涉及薪酬的事实，单位不统一：①某私募量化实习津贴 1000 元/天，评论区对比「券商投行行研一天有一百不错了」；②长江证券行研实习日薪 80 元以内，并指出很多公司没有实习工资；③港股IPO 香港团队实习近 1w/月，另有极高出差强度；④某头部券商债承实习走人事、有实习薪资但未披露数额。
+
+【Pattern】可归纳的只有一条方向性模式：技术/策略导向（量化）实习薪酬显著高于传统中介/研究型（行研、承做）实习，同为人民币口径下日薪差距约一个数量级；月薪制（IPO）与日薪制（量化、行研）混用，无法直接比较。
+
+【Interpretation】（样本有限，仅供参考）薪酬差异可能反映两类人力定价逻辑：量化实习生被当作潜在 alpha 来源、按「上限产出」定价；卖方实习生被当作流程执行人力、按「可替代成本」定价。港股IPO 的较高月薪则可能对应其极高的出差与工时消耗，属于强度补偿而非稀缺性溢价。
+
+【Implication】做赛道选择时用「单位时间综合回报」而非绝对日薪比较：量化高薪需叠加低录用率与强淘汰风险；卖方低薪需叠加垂直履历与转正通道价值。跨币种不做折算，也不要把个位数案例当作「行业薪资水平」。</dd></dl></details><div class="tc-f">置信度 低</div></section><section class="panel" id="panel-hc_trend"><div class="tc-h"><span class="tc-name">HC 趋势</span><span class="badge lv-pattern">Pattern</span><span class="ev">4 条支撑</span></div><p class="finding">多个独立信源一致指向供给端收缩：求职者体感「债交岗 hc 很少、很多机构没开」，量化暑期海投基本无测评/笔试/面邀，有求职者投递 194 份（有效约 140）、真人面 18+ 仅得 4 个 offer，但同时有机构标注「急招」「项目多人少、组里各阶段项目都有」——即缺人手但未必开正式 HC，更多以日常/项目制实习补人力。</p><details class="tc-d"><summary>展开分析</summary><dl><dt>为什么重要</dt><dd>「投递量—回应率—offer 数」的漏斗比例已经发生变化，用历史经验估算投递量会导致策略性误判，尤其是把暑期实习当作唯一路径的候选人。</dd><dt>行业含义</dt><dd>机构在人力紧张时倾向于用无留用的项目制实习补缺口，而非释放正式编制，这会同时造成「实习生体感很忙」与「应届 HC 体感很少」并存的局面；部分赛道（债券交易暑期）据评论称仅少数公募和少量理财子开放。</dd><dt>对你的含义</dt><dd>不要单押暑期一条路径：同步准备日常实习（作为垂直履历补丁）与泛体制（考公+国央企）双轨；投递量按「百份级」规划并预留笔试/测评时间成本；对标注「急招、项目多人少」的岗位先确认人事归属与留用可能，避免用高强度换取零留用。</dd><dt>个例</dt><dd>债券交易/中后台求职帖（债交 hc 很少，60%过简历但仍迷茫），量化暑期 0 offer 帖（海投无测评/笔试/面邀），26 Summer 求职记录（投递194份、4个offer，含多个被拒），某头部券商债承实习（急招、项目多人少、项目制无留用）</dd><dt>完整分析</dt><dd>【Fact】4 条与 HC 直接相关：①债券交易/中后台求职者称暑期投递 60%以上能过简历，但债交岗 hc 很少、很多机构没开，评论区补充「债交开暑期很少（没几家公募和少量理财子）」；②量化暑期求职者把能投的量化私募基本投完、公募券商也投了不少，「基本没收到任何测评/笔试/面试」，只有简历不合适拒信；③26 Summer 求职者统计投递 194 份（有效约 140）、改简历 57 版、AI 面/测评/笔试 30-50 场、真人面 18+、最终 4 个 offer；④某头部券商债承实习为急招、组里各阶段项目都有、项目多人少、明确项目制无留用。
+
+【Pattern】两条重复出现的方向：一是需求端收缩的体感集中在债券交易、量化暑期等细分赛道，表现为「过简历容易、拿面试极难」；二是存在「缺人手但不给正式 HC」的结构，机构以日常/项目制实习填补人力，表现为标注急招、加班、无留用。
+
+【Interpretation】（样本有限，仅供参考）收缩可能来自两个叠加因素：机构对正式编制的审慎（先以实习试人力），以及部分赛道（债交）本身暑期项目规模就小。需要强调：4 条事实均来自求职者单方体感，缺少机构侧开岗数据，不能推断为整体市场趋势。
+
+【Implication】按「多路径并行+百份级投递量」做计划：暑期、日常实习、泛体制同步推进；对「急招但无留用」的岗位在投递前先确认人事归属、留用可能与工时预期，避免以高强度换取零留用。</dd></dl></details><div class="tc-f">置信度 中</div></section><section class="panel" id="panel-interview"><div class="tc-h"><span class="tc-name">面试特征</span><span class="badge lv-pattern">Pattern</span><span class="ev">7 条支撑</span></div><p class="finding">面试结构的共性大于差异：一级买方（PE/VC）高频考察三大表勾稽等会计基础+估值建模（相对估值/对标选取）+动机类问题（为什么从二级转一级、为什么这家）；券商债承面试偏温和，重「对业务环节的理解」与特质举证；量化面试为 tech+经验二分且任一失败即直接 fail、行为面权重极低；轮次上 PE/债承出现单轮即可定结果，外资行/大机构为多轮。</p><details class="tc-d"><summary>展开分析</summary><dl><dt>为什么重要</dt><dd>面试准备存在高复用性的「通用模块」（会计勾稽、估值方法、动机叙事），先补齐这些模块的边际收益高于针对单一机构刷题。</dd><dt>行业含义</dt><dd>一级买方把「会计基础+估值方法」当作最低共识线而非加分项，说明其筛选逻辑是排除不合格而非挑选优秀；量化把行为面权重下调，说明该赛道对「软性匹配」的定价远低于硬技能与经验产出，与银行类面试逻辑正好相反。</dd><dt>对你的含义</dt><dd>优先补齐三大表勾稽、相对估值与对标公司选取、行业分析框架三块通用能力；准备一段可追问细节的项目/公司叙述（含行业规模测算、壁垒、竞对、技术路线）；量化方向则把时间投向 tech 硬技能与过往策略的方法论复盘，不要按投行思路准备行为面。</dd><dt>个例</dt><dd>外资PE 一面（会计勾稽、行业分析、KYC/AML），PEVC 实习面试四模块（项目/推票、财务估值、求职规划、行业热点），某头部券商债承一面（自我介绍、业务环节理解、特质举证），量化面试经验帖（tech+经验，任一失败即 fail，行为面权重低），高瓴创投 AI+工业 MD 面（5 问：动机、方向认知、公司研究、CES 观察），26 Summer 求职记录（Barclays 一面2轮、多机构笔试/AI面/群面流程），投资岗面试前夜求助帖（简历写 DCF/可比估值但未学过）</dd><dt>完整分析</dt><dd>【Fact】7 条面试相关事实：①外资PE 一面——建模是否学过、为什么从二级转一级、三张表勾稽与利润变化对现金流量表的影响、行业分析流程、看不看财报、审计/KYC/AML 记忆、到岗时间；②PEVC 帖归纳四块——过往项目/推票（投资逻辑、规模测算、核心优势论证、盈利预测、竞对、技术路线）、财务与估值建模（三大表勾稽、相对估值、对标选取）、求职规划、最新行业热点；③债承一面——自我介绍（成绩/六级）、债承业务流程理解（招投标/立项/尽调/质控/申报/存续期）、特质+具体事例追问、期望收获；④量化面试帖——tech 与经验两部分，任一项完成不好直接 fail，行为面基本只问资产/频率，对 junior 录用不起决定性作用；⑤高瓴 MD 面 5 问——自我介绍、为什么做投资、为什么高瓴及是否了解 AI+工业（讲已投项目案例）、讲一个研究过的公司（具身智能，分析壁垒与风险）、CES 见闻及方向认知与局限；⑥26 Summer 帖显示流程形态多样（Barclays IBD 一面 2 轮、Wells Fargo 过 PI、招银国际录视频+群面、SHL 漏做直接失格、AI 面/测评/笔试 30-50 场）；⑦投资岗面试前夜帖——简历写 DCF/可比估值但实际未学过。
+
+【Pattern】三条高复用模式：(a) 会计与估值基础是 PE/一级岗位的共同最低线（三大表勾稽在两份独立面经中都被点名，估值方法在 PEVC 帖与求助帖中共 3 次出现）；(b) 动机与自我叙事是普遍环节（为什么转方向、为什么这家、求职规划）；(c) 赛道分野——量化以 tech+经验为唯一判定项、行为面权重极低；卖方承做面试偏温和但看重垂直经历与业务环节表达。
+
+【Interpretation】（推测）一级面试以「排除不合格」为目标，因此先设会计/估值等硬性共识题再谈项目；量化以「能否 add value」为目标，硬技能与策略经验可直接判定，软性匹配对 junior 定价低；简历写未掌握的估值方法（DCF）构成实际风险，一旦被追问即为负分。
+
+【Implication】按通用模块优先准备：三大表勾稽、相对估值与对标选取、行业分析框架、一段可被追问细节的项目叙述；量化方向则把行为面准备时间压到最低，转向 tech 与策略复盘。简历上不写无法当场讲清的方法。</dd></dl></details><div class="tc-f">置信度 高</div></section><section class="panel" id="panel-return_offer"><div class="tc-h"><span class="tc-name">留用机会</span><span class="badge lv-pattern">Pattern</span><span class="ev">3 条支撑</span></div><p class="finding">留用信号以「低留用/明确无留用」为主：一级 PE 被明确指为留用机会很少，某头部券商债承实习为项目制、明确无留用；仅 1 例实现转正，且是「小而美」量化公司、路径为先在某自营量化做出产出再进入并转正。样本仅 3 条，不足以判断各机构留用率高低。</p><details class="tc-d"><summary>展开分析</summary><dl><dt>为什么重要</dt><dd>实习与留用之间的通道正在变窄，把实习默认等同于「转正跳板」会直接影响 offer 决策与时间配置。</dd><dt>行业含义</dt><dd>若一级买方留用稀缺、卖方项目制实习明确无留用，则实习的实际功能从「筛选管培生」回归「低成本补充人力」，候选人需要另找转正通道或提前布局校招/泛体制路径。</dd><dt>对你的含义</dt><dd>接受实习前必须直接问清留用政策（是否有 HC、往年留用比例、留用考核标准）；对明确无留用的实习，把它定位为「履历补丁」并同步投递校招；量化方向若以留用为目标，优先选择能完整跑通一条研究线、有机会产出可复用框架的团队，而非流水线岗位。</dd><dt>个例</dt><dd>PEVC 实习面试经验帖（PE 留用机会很少），某头部券商债承实习（项目制实习，无留用），长江证券行研→量化实习并转正（小而美公司，氛围融洽）</dd><dt>完整分析</dt><dd>【Fact】3 条与留用直接相关的事实：①PEVC 帖明确指出「PE 留用机会很少」，并建议在面试谈求职规划时把落点放在「希望在一级市场求职」以规避该问题；②某头部券商债承实习在反问环节被明确告知为项目制实习、无留用；③长江证券帖作者经历券商行研（钱少事多、24 小时 oncall）等多段实习后，最终进入一家小而美的量化公司并转正，团队氛围融洽、研究模式合理。
+
+【Pattern】可归纳的方向是「留用通道收窄」：一级 PE 留用机会少、卖方项目制实习明确无留用，两个不同赛道给出同向信号；实现转正的唯一案例出现在小规模量化团队，且前置条件是在另一直营量化积累产出。
+
+【Interpretation】（样本有限，仅供参考）留用率低可能与两件事相关：机构用项目制实习替代编制（见 HC 趋势主题），以及一级买方岗位本身按项目周期配置人力。转正成功案例集中于小团队，可能是因小团队以「能否独立跑通研究线」为考核标准、决策链更短。样本仅 3 条，无法判断机构层面的留用率高低，也不能推断「量化普遍易转正」。
+
+【Implication】把「留用政策」变成实习谈判的必问项：是否有对应 HC、往年留用比例、考核标准与时点；对明确无留用的实习按「履历补丁」定位，同步推进校招与泛体制准备；若以转正为目标，优先选择能完整跑通研究线、允许产出可复用框架的小团队。</dd></dl></details><div class="tc-f">置信度 中</div></section></div></div>
+<h2>事实对照</h2>
+<div class="facts-grid"><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">PE</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>某9本大四；有过行研、银行、量化实习，但很不垂直（零相关一级/PE 实习）</p></div></div><details class="exp"><summary>经历摘要</summary><p>共一轮面试，问题包括：1.自我介绍，问基本的建模有没有学过；2.问为什么想从二级做一级；3.简单的会计问题，例如三张表的勾稽、利润变化对应现金流量表上的变化；4.如何分析一个行业，说大概思路和流程；5.会不会看上市公司财报，平常会不会自己分析；6.问对审计方面熟不熟，看简历问 KYC、AML 流程还记得吗；7.介绍公司业务，问什么时候能到岗。发帖人自评整体还是比较轻松的。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">面经</span><span class="tag">PE</span><span class="tag">外资PE</span><span class="tag">一级市场实习</span><span class="tag">零相关实习</span><span class="tag">春招分享</span><span class="tag">大四</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69db9a0400000000210123a8?xsec_token=ABqqAvESnbmNbumzJpWv-pNCjFosdw3gdhWmGf3W3qJxw%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">债券交易；产品、风控等中后台岗位</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi">自述尝试互联网后发现工作强度和心理压力都很大、不太适合自己；本人追求 wlb＞薪资≈成长性。</span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>中九本🦌硕；实习经历包括一段固收研究交易（6个月）、腰部券商行研、中厂泛财经、大厂产运。</p></div></div><details class="exp"><summary>经历摘要</summary><p>暑期实习投递均为金融领域，主要是债券交易以及产品、风控等中后台岗位。60%以上能过简历，但体感上债交岗hc很少、很多机构没开。产品/风控岗即使面试也会被疯狂质疑动机，且因没有匹配实习、答不上来部分专业知识。目前仍迷茫于是否继续头铁冲债交岗、暑期base地选北京还是南方城市、没做暑期是否需要补一段债交或中后台日常实习，或在考虑直接全力准备泛体制（考公+国央企）。评论区建议：做各种暑期的同时都要全力准备泛体制；债交开暑期很少（没几家公募和少量理财子）；建议海投暑期找一段固收投研；暑期也可做产品或刷银行。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">金融求职</span><span class="tag">暑期实习</span><span class="tag">债券交易</span><span class="tag">泛体制</span><span class="tag">27届</span><span class="tag">迷茫求助</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/6a10fcc80000000006033ce4?xsec_token=ABUHURKYPyBR_ZWR6WCed423ac520tgm0uVNwIoBKYg3M%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">投资</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p><span class="na">—</span></p></div></div><details class="exp"><summary>经历摘要</summary><p>发帖人表示明天有投资面试；简历里写了 DCF、可比公司（可比）估值，但自述其实根本没学过，实际用过的估值方法是「直接询问董事法」，发帖问怎么办。面试尚未发生，正文未提及面试轮次、具体题目或留用情况。评论区有人称「直接询问董事法才是真干过的」「这才是资深投资人的方法」，也有人表示第一次见这种方法，并说 DCF 不会就不会，模型挺复杂，临时抱佛脚无用。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">面试</span><span class="tag">投行</span><span class="tag">pevc</span><span class="tag">私募基金</span><span class="tag">投资</span><span class="tag">估值</span><span class="tag">DCF</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69c3d615000000002103a575?xsec_token=ABlnHY0uQr6bNniAY-S8KmIQFjF_HdQ56wPITZuk6FMLQ%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">其他</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">港股IPO实习 · 香港团队</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v">香港（线上办公）</span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi">近1w/月</span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi">出差频率极高，绝大多数情况下每天换一个城市，周末常在项目地度过且随时可能有线上工作；工作强度极大，曾连续出差晚上休息不好加上赶论文导致每天心脏怦怦乱跳，最终因身体原因决定提出交接离职。</span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p><span class="na">—</span></p></div></div><details class="exp"><summary>经历摘要</summary><p>实习内容分三块：TPDD 提问（约50%）——按受访公司业务内容和受访人回复对提问表述做微调，并提示跳过的题目；招股书等验证工作（约30%）——对照招股书草稿列验证文件清单、分轮次更新验证需求、proofread 并提验证意见，以及标记 left margin note、准备 verification note 并打包编号文件；其他工作（约10%）——核对 Teaser、根据背调报告做背调问卷（涉诉情况）。出差频率极高，绝大多数情况下每天换一个城市，报销需按月按高铁、机票、酒店、餐饮分类打包，当月上交发票次月下发。后期因连续出差休息不好加上赶论文身体不适，决定和律师们提出交接离职。评论区多人询问律所名称和面试经验，正文与图片均未作答。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">港股IPO</span><span class="tag">红圈所</span><span class="tag">实习</span><span class="tag">资本市场</span><span class="tag">法学生</span><span class="tag">境外律师</span><span class="tag">出差</span><span class="tag">离职交接</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69f4c40d0000000023017bdd?xsec_token=ABt2aR4rZ8RKs6YXlTLV3oOHHVNDvV-WVubM1Qrui5ZIE%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co">某头部券商</h3><span class="badge">券商</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">债承实习 · 债承</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi">走人事，有实习薪资</span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi">岗位急招，加班强度稍大；组里项目多人少，加班；前期主要都是底稿工作。</span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>发帖人自述：有一段行研实习（强调报告撰写中公司财务数据的拆解和基本情况的拆解），没有债券相关实习，学校里面还有课；未提及学校层次、学历与GPA</p></div></div><details class="exp"><summary>经历摘要</summary><p>面试整体很简单。老师提问：1 自我介绍，按教育经历（强调成绩和英语六级）、实习经历、对债承工作的理解和自身能力来说；2 对债承工作内容是否有了解，按招投标、立项、尽职调查、质控、申报交易所、发行存续期管理来说并融入自己的理解；3 自己有哪些特质符合债承工作，说了学习能力和抗压能力，并结合具体事例，老师还追问了具体一个事例中数据的应用；4 希望从这段实习经历里面获得什么。反问环节：实习走人事、有实习薪资；目前组里各个阶段的项目都有，项目多人少、加班；多久能接触到核心工作内容看上手快慢以及熟练程度，前期主要都是底稿工作。补充：项目制实习，无留用。发帖人自述未通过，可能因为自己没有债券相关实习加上学校里面还有课。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">券商</span><span class="tag">债承</span><span class="tag">债券承做</span><span class="tag">实习面试</span><span class="tag">面经</span><span class="tag">无留用</span><span class="tag">日常实习</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/6a0312fd000000003700e1da?xsec_token=ABxXEk0gbyLolALqSshZJZi5n7t4uzxDN-xfe76xWcGOs%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">量化</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p>量化不需要那么fancy的背景（有门槛，但对背景的要求低于头部一级和二级主观投研）；数学部分应花更多精力在统计学相关课程，如时间序列、概统、随机过程、回归分析；算法方面需把CS基本的算法分析学了，再刷leetcode提升熟练度，还需掌握ml所有算法和dl的基本模型；编程只会python也完全够用，会cpp是加分项，Linux基础需要会一些；理解所学的数学和计算机内容如何在量化领域应用；学过量化金融相关课程面试会更有的聊</p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>本科在国内学的数学和经济，非top2、3；准备了一年</p></div></div><details class="exp"><summary>经历摘要</summary><p>Quant面试主要分两部分：tech和经验。行为面与bank大相径庭，量化行为面基本只问想做什么资产、频率，顶多加一些为什么上家不继续干了，对junior的录用不起决定性作用。Tech考察是否有必要的知识储备，经验则通过过往实习经历了解方法论和积累的策略来判断能否给团队add value，两项中任意一项面试完成不好都会导致直接fail。作者准备一年后收获外资hedge fund和内资百亿的全职offer。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">量化</span><span class="tag">面试准备</span><span class="tag">tech面</span><span class="tag">行为面</span><span class="tag">外资hedge fund</span><span class="tag">内资百亿</span><span class="tag">求职经验</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/6a251ea400000000150250fb?xsec_token=ABifrV6amD1bpATQpqqFIxJw8x9H8w2q6VdMh_a47uEgg%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">私募</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">实习</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi">实习津贴:1000元/天</span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi">工作时间：工作日 9:00am-18:00pm（原文未提周末是否加班）</span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p><span class="na">—</span></p></div></div><details class="exp"><summary>经历摘要</summary><p>发帖人面暑期期间随手接了一个私募量化的面试，想着接触下行业随便聊聊，侥幸过了几轮；到谈薪的时候被日薪砸晕，跟HR确认了几遍自己没听错。评论区指出券商投行行研一天有一百不错了，量化给得起这个钱、基本不太招人、能进去算赶上了；也有评论称量化很痛苦，能不能做出收益是硬性指标，市场不好立马裁员，其之前实习带教被辞退、天天加班搞产出。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">金融求职</span><span class="tag">私募量化</span><span class="tag">暑期实习</span><span class="tag">实习薪资</span><span class="tag">量化</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69d0935d000000001b023995?xsec_token=AB-b8OYDT1Oha_mzkKEEXot6p2kRHJ_g3vpIukQWER8Wo%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">量化</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">金工组实习生 · 券商研究所金工组</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p>找第一份量化实习不需要非常夸张的数学基础和编程基础，够用就行；数学必须：高数、线性代数、概率统计，加分项：随机过程、凸优化；编程必须：python（numpy、pandas、matplot库），代码ai写完能看懂就行，不需要自己写</p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p><span class="na">—</span></p></div></div><details class="exp"><summary>经历摘要</summary><p>正确的实习路径应该是：因子—模型—策略；大部分人要从挖因子开始，因子是一切的基础，没有因子后面模型也不会做。找第一份量化实习不需要非常夸张的数学基础和编程基础，够用就行。流程上先找因子相关的，比如券商研究所金工组实习生，在这过程中也会学一些多因子策略。推荐资料：《python量化金融编程 从入门到精通》，以及 quant-wiki 华泰多因子系列研报（差不多10篇，看完就入门）。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">量化</span><span class="tag">实习</span><span class="tag">挖因子</span><span class="tag">券商研究所</span><span class="tag">金工组</span><span class="tag">数学基础</span><span class="tag">编程基础</span><span class="tag">求职路径</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69e71ce8000000001a0217c7?xsec_token=ABC-d8CKOLxG4HrRceiiuFtg9m95F95WbL3LXqq-th1KU%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co">高瓴创投</h3><span class="badge">VC</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">AI+工业</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p><span class="na">—</span></p></div></div><details class="exp"><summary>经历摘要</summary><p>MD面，共问了 5 个问题：自我介绍（聊到自己在波士顿读书，与面试官有共同经历）、为什么想做投资、为什么是高瓴以及是否了解其投资的 AI+工业方向（答主提前研究了已投项目，重点讲了工业视觉检测案例，并补充了能耗优化方向的布局逻辑）、讲一个研究过的公司（讲了具身智能赛道一家走软硬一体路线的公司，并分析了壁垒与风险）、CES 上看到的好玩项目（答主未按提问方向答，讲了 AI 与工业结合从工具层升级到操作系统层面，具体举了西门子和英伟达联合发布）、以及 AI 加工业方向的认知与局限性。原文未提及面试结果、轮次数量之外的后续流程或留用情况。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">面经</span><span class="tag">VC</span><span class="tag">一级市场</span><span class="tag">美元基金</span><span class="tag">海归求职</span><span class="tag">MD面</span><span class="tag">AI+工业</span><span class="tag">具身智能</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69d5d2a0000000001a02b8f1?xsec_token=AB9ypXvQ_BpLihE2oVgUz-k0UU1mqBJcj4OKqf7N_0cqE%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">PE</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">PEVC实习</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>纯商科背景，先有一段 FA 实习经历，之后做了长达一年的 PEVC 实习（消费科技和硬科技均有涉及）</p></div></div><details class="exp"><summary>经历摘要</summary><p>博主分享如何以纯商科背景找 PEVC 实习并面试。找实习：除校友群外，靠学长学姐内推，一级机构大多欢迎能自己主动出击 social 的实习生，商科背景同学要大方、e 一点去获取机会/弥补信息差。面试考察四块：一是过往项目/推票经历——一级项目问投资逻辑（行业规模测算、公司核心优势如何论证、盈利预测逻辑、对竞对的了解、技术路线图），若项目已投一段时间还会问现状与当初预期的差异及原因；二级推票要求对数字敏感，曾被指出行研实习生写完深度却对公司分业务营收规模没有深刻记忆。二是财务水平/估值建模——最基本的三大表勾稽关系（具体科目从哪儿来到哪儿去），估值建模重点是相对估值、对标公司怎么找、估值指标用哪个。三是自我求职规划——VC 可讲喜欢探索未知、主观能动性、自驱力强；PE 留用机会很少，回答希望在一级市场求职一般问题不大。四是其他——最新行业或科技热点，以及行业八卦可结合具体项目顺着说。文中未提及面试轮次与最终留用结果。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">PEVC实习</span><span class="tag">一级市场</span><span class="tag">商科背景</span><span class="tag">面试经验</span><span class="tag">实习</span><span class="tag">行研实习</span><span class="tag">消费科技</span><span class="tag">硬科技</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69c3f8bd000000002200e6a6?xsec_token=ABlnHY0uQr6bNniAY-S8KmIUe6wAOxxUqxPLkNa21CqaE%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co">Barclays；Wells Fargo；招银国际；海通国际；某大外资合资券商；某数百亿PE（接了这个 offer）</h3><span class="badge">投行</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">26 Summer 暑期实习（IBD/PE/咨询方向） · IBD；PE/VC；咨询</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v">上海、香港</span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi">工作日做 PE，本想周末去做 bartender 兼职摇酒，但&#x27;目前搁置，太忙了&#x27;（原文未提具体工时）</span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>某家小 FA 的面试候选人好几十个，包括 3 个北大，2 个耶鲁，杜克，上交等（HR 发邮件未密送，从收件人 edu 邮箱可见）；博主自述接触过 M&amp;A、DCM、LevFin、Buyout、Strategy Consulting（CDD）</p></div></div><details class="exp"><summary>经历摘要</summary><p>25-26 年度找实习统计：投递 194 份（有效约 140），改简历 57 版，AI 面/测评/笔试约 30-50 场，真人面 18+，最终 4 个 offer。IBD 路线：Barclays IBD 一面 2 轮被拒，Wells Fargo Banking 过 PI 但没 sponsor，招银国际 IBD 录视频+群面被拒，海通国际 M&amp;A 因 SHL 漏做未进面；某券商暑期债 call+一面后拿 offer，某大外资合资券商并购重组笔试-面试后拿 offer。买方：某数百亿 PE 一面-二面后拿 offer 并接了，业务线从 Buyout 到 VC，即将跟一个复杂的 Distressed LBO。咨询线：BCG 笔试&amp;AI 面-一面被拒，Oliver Wyman pretalk 被拒，ZS 一面被拒，OC&amp;C 笔试-一面被拒。另有某三中一华暑期债、某 Top FA M&amp;A 暑期仍在推进中。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">金融实习</span><span class="tag">投行</span><span class="tag">IBD</span><span class="tag">PEVC</span><span class="tag">暑期实习</span><span class="tag">求职记录</span><span class="tag">留学生</span><span class="tag">咨询</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/6a19a3140000000007029bf1?xsec_token=ABFd[联系方式已脱敏]%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">量化</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">量化暑期实习</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>评论认为学历和竞赛经历是第一道卡点；券商公募实习意义不大，头部私募若只做流水线螺丝钉竞争力也不强，不如中小私募能跑通一条线；私募量化正职要求很高，要么能上实盘，要么是天才；有 9 本 top2 硕的求职者同样 0 offer</p></div></div><details class="exp"><summary>经历摘要</summary><p>发帖人背景为财经类二本本科、工科 985 硕士，本科与硕士都是计算机类专业，有三段以上量化实习（简历写了三段），其中包含头部量化私募和头部券商的量化岗。暑期把能投的量化私募基本都投了，公募和券商也投了不少，基本没收到任何测评/笔试/面试，只收到简历不合适的拒信。因主要精力放在量化，互联网基本没怎么投，少量投了数科/风控之类的也基本没回音。评论区有人认为量化刷多段实习意义不大，更重要的是在一段实习里产出可复用、可迭代的框架；也有人指出学历和竞赛经历卡死了门槛，并建议可以试试小一点的券商。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">暑期实习</span><span class="tag">量化</span><span class="tag">量化私募</span><span class="tag">券商</span><span class="tag">公募</span><span class="tag">0offer</span><span class="tag">二本</span><span class="tag">985硕士</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/69efca9d0000000035024b6b?xsec_token=ABFUOOReWA43vD690SZELcv8YkhgMDfvB7FV1pd2TvQXY%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co">长江证券</h3><span class="badge">券商</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">行研实习生；量化实习生（最终转正） · 券商行研（TMT 行业）；基金代销业务部门</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi">日薪 80以内（很多公司甚至没有实习工资）</span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi">行研实习非常辛苦、钱少事多，因为研究 TMT 要盯海外科技巨头动态，常到晚上才开始工作，mentor 希望你 24 小时 oncall，财报季熬夜是家常便饭；相比之下最终转正的那家公司小而美、氛围无敌</span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p>本人高中数学/本科就读于极其卷实习的管理学院，大一打了一年游戏、大二卷了一年绩点，大二结束的暑假开始第一段实习；大三下才决定 all in 量化并分流到统计专业（而非原打算的财务管理）；转量化时 coding 不强、没干过量化，0 基础起点非常低</p></div></div><details class="exp"><summary>经历摘要</summary><p>大一打了一年游戏，大二卷了一年绩点，大二结束的暑假开始第一段实习。第一段是券商行研，做 TMT 行业研究，日薪 80 以内（很多公司甚至没有实习工资），24 小时 oncall，财报季熬夜是家常便饭，最开始都是从整理会议纪要、收集数据、做 PPT 开始，非常枯燥。大三下决定转行不做传统金融，专业分流到统计，并开始找量化实习；0 基础很难找，先是海投进入一家主观交易团队创办的&quot;量化训练营&quot;初创公司，靠 cursor 辅助、coding 能力没提升。之后找到一家券商省级分公司的暑期实习（并非市场上的 summer intern），帮基金代销业务部门做净值可视化分析，补齐了回撤等净值分析基础知识。第四段是一家相当大的国内自营量化，属血汗工厂模式、风格狼性，招大量实习生自由探索数据，做因子要自己做计算和回测框架，实习生没有标准代码，但实习工资和产出 bonus 开得较高。最后一段进入一家小而美公司并最终转正，团队氛围融洽、研究模式合理。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">量化实习</span><span class="tag">券商行研</span><span class="tag">转正</span><span class="tag">跨行转量化</span><span class="tag">海投</span><span class="tag">暑期实习</span><span class="tag">0基础</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/6a9ede4500000000260176fb?xsec_token=ABAahl6vboutRecF7cX1eM0uCfJ9ysLt2MeLfbtQWemD4%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article></div>
+<footer><span>FinClue 金线索 · 本地阅读端</span>
+<span>数据源：小红书 · 渲染自 data/facts 与 data/pending</span>
+<span>每 3 天 10:00 自动更新</span></footer>
+</div></body></html>

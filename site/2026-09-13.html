@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FinClue 金线索 · 2026-09-13</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}
+:root{
+ --bg:#f8f4ed;--card:#fffdf9;--line:#e7ded1;--ink:#2a2320;--dim:#6b6058;
+ --faint:#9d928a;
+ --accent:#9e3d47;--accent-bg:#f7eae9;--accent-line:#e6cdcc;--accent-ink:#8e3741;
+ --gold:#c9a227;--gold-bg:#f8f0d8;--gold-line:#e8d7a8;--gold-ink:#8a6c12;
+ --bar-paper-bg:#f6efe3;--bar-paper-line:#e6d9c4;--bar-paper-ink:#8a6a44;
+ --bar-real-bg:#f7eae9;--bar-real-line:#e6cdcc;--bar-real-ink:#8e3741;
+ --pill:#f5efe6;--pill-line:#e6dccd;
+ --serif:Georgia,"Songti SC","Noto Serif CJK SC","SimSun",serif;
+ --card-r:12px;
+ --shadow:0 1px 2px rgba(90,60,40,.05),0 10px 24px -14px rgba(90,60,40,.16);
+}
+@media(prefers-color-scheme:dark){:root{
+ --bg:#1a1614;--card:#221d1a;--line:#3b332e;--ink:#f2ece5;--dim:#b8aca1;
+ --faint:#8a7f76;
+ --accent:#d29aa0;--accent-bg:#302325;--accent-line:#4d383b;--accent-ink:#e0b2b7;
+ --gold:#d9b64a;--gold-bg:#2b2415;--gold-line:#473b1e;--gold-ink:#e0c169;
+ --bar-paper-bg:#282119;--bar-paper-line:#42382a;--bar-paper-ink:#cbb493;
+ --bar-real-bg:#302325;--bar-real-line:#4d383b;--bar-real-ink:#e0b2b7;
+ --pill:#282220;--pill-line:#3d3430;
+}}
+body{font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;
+ background:var(--bg);color:var(--ink);padding:22px 18px 60px}
+.wrap{max-width:1560px;margin:0 auto}
+a{color:var(--accent)}
+/* 顶栏走中国风 + 报纸报头：居中排，字号拉开，上下各一道线（上细下朱红）。
+   红只留在下面那道 2px 线上 —— 「红太红」的解法是面积，不是色相。 */
+header{text-align:center;padding:13px 0 14px;border-top:1px solid var(--line);
+ border-bottom:2px solid var(--accent);margin-bottom:2px}
+header .logo{display:block;color:var(--gold);font-size:19px;line-height:1;margin-bottom:7px}
+.hd{min-width:0}
+h1{font-family:var(--serif);font-weight:700;font-size:27px;color:var(--ink);
+ letter-spacing:.5px;line-height:1.15;display:flex;align-items:baseline;
+ justify-content:center;gap:10px;flex-wrap:wrap}
+h1 .cn{font-size:14px;font-weight:500;color:var(--accent);letter-spacing:3px}
+.archive{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.archive a{font-size:12px;padding:3px 10px;border-radius:11px;background:var(--pill);
+ border:1px solid var(--pill-line);color:var(--dim);text-decoration:none}
+.archive a:hover{border-color:var(--accent-line)}
+.archive a.cur{background:var(--accent-bg);border-color:var(--accent-line);
+ color:var(--accent);font-weight:600}
+h2{font-family:var(--serif);font-size:16px;margin:26px 0 10px}
+.badge{font-size:11px;padding:2px 8px;border-radius:9px;background:var(--pill);
+ color:var(--dim);border:1px solid var(--pill-line);white-space:nowrap}
+.badge.lv-pattern{background:var(--accent-bg);color:var(--accent-ink);border-color:var(--accent-line)}
+.badge.lv-implication{background:var(--gold-bg);color:var(--gold-ink);border-color:var(--gold-line)}
+.badge.none{background:transparent;color:var(--faint)}
+.na{color:var(--faint)}
+.muted{color:var(--faint);font-size:12.5px}
+/* ── 洞察：tab 切换（纯 CSS，无 JS） ──
+   radio + label + :checked ~ 兄弟选择器。file:// 下 service worker / fetch 都不可用，
+   所以不引 JS；六个面板始终在 DOM 里，只是 display 切换。 */
+/* 隐藏 radio。用 1px+opacity 而不是 left:-9999px —— 负向偏移在部分安卓浏览器上
+   会撑出横向滚动。radio 仍可 Tab 聚焦、方向键切换，键盘操作不受影响。 */
+.tabs>input{position:absolute;width:1px;height:1px;opacity:0;margin:0}
+.tabbar{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--line);
+ padding-bottom:0;margin-top:12px}
+.tabbar label{cursor:pointer;font-size:12.5px;padding:6px 13px;border-radius:9px 9px 0 0;
+ background:var(--pill);border:1px solid var(--pill-line);border-bottom:none;
+ color:var(--dim);display:inline-flex;align-items:center;gap:6px;
+ user-select:none;margin-bottom:-1px}
+.tabbar label:hover{color:var(--ink)}
+/* 没信号的主题在 tab 上就要看得出来 —— 否则「六个主题固定占位」用来暴露
+   「哪个主题这期没信号」的价值就没了。 */
+.tabbar label.empty{opacity:.55}
+.tabbar label.empty::after{content:"无信号";font-size:10px;color:var(--faint);
+ background:var(--pill);border:1px solid var(--pill-line);border-radius:5px;
+ padding:0 4px}
+.panels{margin-top:14px}
+.panel{display:none;background:var(--card);border:1px solid var(--line);
+ border-radius:var(--card-r);padding:15px 17px;box-shadow:var(--shadow)}
+.tc-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tc-name{font-weight:600;font-size:14.5px;font-family:var(--serif)}
+.tc-h .ev{margin-left:auto;font-size:11px;color:var(--faint)}
+.finding{font-size:13.5px;line-height:1.68;margin:10px 0}
+.panel .tc-f{margin-top:12px}
+.tc-d summary{cursor:pointer;font-size:12px;color:var(--accent);list-style:none}
+.tc-d summary::-webkit-details-marker{display:none}
+.tc-d summary::before{content:"▸ ";color:var(--faint)}
+.tc-d[open] summary::before{content:"▾ "}
+.tc-d dl{margin-top:9px;padding-top:9px;border-top:1px dashed var(--line)}
+.tc-d dt{font-size:11.5px;color:var(--faint);margin-top:9px}
+.tc-d dt:first-child{margin-top:0}
+.tc-d dd{font-size:13px;margin-top:2px;white-space:pre-wrap}
+.tc-f{margin-top:auto;font-size:11px;color:var(--faint)}
+/* ── 事实卡片：每个来源一张 ── */
+/* min(500px,100%) 而不是 500px —— 手机宽度不足 500px 时，写死的 500px 下限
+   会直接撑出横向滚动条。 */
+.facts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(500px,100%),1fr));gap:12px}
+.fc{background:var(--card);border:1px solid var(--line);border-radius:var(--card-r);
+ padding:13px 15px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:11px}
+.fc-h{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fc-h .co{font-weight:600;font-size:14.5px;font-family:var(--serif)}
+.fc-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px 14px}
+.fc-f{display:flex;gap:7px;font-size:12.5px;min-width:0}
+.fc-k{color:var(--faint);font-size:11.5px;flex:none;padding-top:1px}
+.fc-v{min-width:0;word-break:break-word}
+.fc-v.hi{color:var(--accent);font-weight:600}
+.fc-f2{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:auto;
+ padding-top:10px;border-top:1px dashed var(--line)}
+.fc-tags{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.fc-src{margin-left:auto;font-size:12px;white-space:nowrap}
+.tag{display:inline-block;font-size:10.5px;color:var(--dim);background:var(--pill);
+ border:1px solid var(--pill-line);border-radius:7px;padding:1px 6px}
+/* 门槛对照在卡片里改为上下叠放：卡片宽度撑不起并排两列长文本，
+   并排会把 recruiting_bar 那种 200+ 字的段落挤成一条竖线。
+   颜色区分（蓝＝书面 / 琥珀＝真实）保留 —— 那才是对照的锚点。 */
+.fc .bars{grid-template-columns:1fr}
+.bars{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.bars{grid-template-columns:1fr}}
+/* 两块门槛：书面＝浅赭底（纸面上的条件），真实＝藏红实底反白字。
+   两者共一条金色左侧边 —— 把「这还是同一组对照」这个意思留住，
+   同时实底那块一眼就是结论所在。 */
+.bar{background:var(--bar-paper-bg);border:1px solid var(--bar-paper-line);
+ border-left:3px solid var(--gold);border-radius:9px;padding:9px 11px}
+.bar h4{font-size:11px;color:var(--bar-paper-ink);font-weight:600;margin-bottom:4px}
+.bar.actual{background:var(--bar-real-bg);border-color:var(--bar-real-line);
+ border-left-color:var(--accent)}
+.bar.actual h4{color:var(--bar-real-ink)}
+.bar p{font-size:12.5px;line-height:1.62;white-space:pre-wrap}
+.exp{margin-top:9px}
+.exp summary{cursor:pointer;font-size:11.5px;color:var(--accent);list-style:none}
+.exp summary::-webkit-details-marker{display:none}
+.exp summary::before{content:"▸ "}
+.exp[open] summary::before{content:"▾ "}
+.exp p{font-size:12.5px;line-height:1.62;margin-top:6px;white-space:pre-wrap;
+ color:var(--dim)}
+footer{margin-top:34px;padding-top:12px;border-top:1px solid var(--line);
+ font-size:11.5px;color:var(--faint);display:flex;gap:14px;flex-wrap:wrap}
+/* ── 手机端 ──
+   原来完全没有断点：事实卡写死 500px 下限会撑出横向滚动，字号也按桌面压到 12.5px。
+   这里按手机阅读习惯调：单列、正文放大到 15px、行高放宽、触控目标（tab / 链接）
+   撑到至少 ~40px 高，左右留白收窄把宽度让给正文。 */
+@media(max-width:640px){
+ body{padding:14px 12px 48px;font-size:15px;line-height:1.7}
+ .wrap{max-width:none}
+ header{padding:11px 0 12px}
+ header .logo{font-size:17px;margin-bottom:5px}
+ h1{font-size:22px;gap:8px}
+ h1 .cn{font-size:13px;letter-spacing:2px}
+ .archive{gap:6px;margin:12px 0 2px}
+ .archive a{font-size:12.5px;padding:6px 11px}
+ h2{font-size:17px;margin:22px 0 10px}
+ /* insight tab：手机上让它换行铺开，而不是横向滑动 —— 只有六个且都是短标签，
+    换行能全部看见；滑动的写法会把一半 tab 藏在屏幕外，看起来像坏了。 */
+ .tabbar{flex-wrap:wrap;gap:5px;border-bottom:none;padding-bottom:0}
+ .tabbar label{font-size:13px;padding:9px 12px;margin-bottom:0;border-radius:8px;
+  border-bottom:1px solid var(--pill-line)}
+ .panel{padding:14px 15px;border-radius:10px}
+ .finding{font-size:15px;line-height:1.75}
+ .tc-name{font-size:15px}
+ .tc-d dd,.tc-d dt{font-size:14px}
+ .facts-grid{grid-template-columns:1fr;gap:10px}
+ .fc{padding:13px 14px;border-radius:10px}
+ .fc-h .co{font-size:15px}
+ /* 岗位/城市/薪资/强度：手机上仍保持两列，但缩小标签列宽、放大取值 */
+ .fc-grid{grid-template-columns:1fr 1fr;gap:8px 10px}
+ .fc-f{font-size:14px}
+ .fc-k{font-size:12px}
+ .bar{padding:10px 12px}
+ .bar h4{font-size:12px}
+ .bar p,.exp p{font-size:14px;line-height:1.7}
+ .exp summary,.tc-d summary{font-size:13px;padding:3px 0}
+ .fc-f2{padding-top:11px}
+ .fc-src{font-size:13px}
+ .tag{font-size:11px;padding:2px 7px}
+ footer{font-size:12px;gap:8px;flex-direction:column}
+}
+#tab-recruiting_bar:checked~.tabbar label[for="tab-recruiting_bar"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-recruiting_bar:checked~.panels #panel-recruiting_bar{display:block}#tab-wlb:checked~.tabbar label[for="tab-wlb"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-wlb:checked~.panels #panel-wlb{display:block}#tab-salary:checked~.tabbar label[for="tab-salary"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-salary:checked~.panels #panel-salary{display:block}#tab-hc_trend:checked~.tabbar label[for="tab-hc_trend"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-hc_trend:checked~.panels #panel-hc_trend{display:block}#tab-interview:checked~.tabbar label[for="tab-interview"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-interview:checked~.panels #panel-interview{display:block}#tab-return_offer:checked~.tabbar label[for="tab-return_offer"]{background:var(--card);color:var(--accent);font-weight:600;border-color:var(--accent-line)}#tab-return_offer:checked~.panels #panel-return_offer{display:block}@media(max-width:640px){#tab-recruiting_bar:checked~.tabbar label[for="tab-recruiting_bar"]{background:var(--accent-bg)}#tab-wlb:checked~.tabbar label[for="tab-wlb"]{background:var(--accent-bg)}#tab-salary:checked~.tabbar label[for="tab-salary"]{background:var(--accent-bg)}#tab-hc_trend:checked~.tabbar label[for="tab-hc_trend"]{background:var(--accent-bg)}#tab-interview:checked~.tabbar label[for="tab-interview"]{background:var(--accent-bg)}#tab-return_offer:checked~.tabbar label[for="tab-return_offer"]{background:var(--accent-bg)}}</style></head><body><div class="wrap">
+<header><span class="logo">★</span><div class="hd">
+<h1>FinClue <span class="cn">金线索</span></h1>
+</div></header>
+<nav class="archive"><a href="2026-09-20.html">2026-09-20</a><a href="2026-09-18.html">2026-09-18</a><a href="2026-09-13.html" class="cur">2026-09-13</a></nav>
+<h2>本期洞察</h2>
+<div class="tabs"><input type="radio" name="ttab" id="tab-recruiting_bar" checked><input type="radio" name="ttab" id="tab-wlb"><input type="radio" name="ttab" id="tab-salary"><input type="radio" name="ttab" id="tab-hc_trend"><input type="radio" name="ttab" id="tab-interview"><input type="radio" name="ttab" id="tab-return_offer"><div class="tabbar"><label for="tab-recruiting_bar" class="empty">招聘 Bar</label><label for="tab-wlb" class="empty">WLB</label><label for="tab-salary" class="empty">薪资</label><label for="tab-hc_trend" class="empty">HC 趋势</label><label for="tab-interview" class="empty">面试特征</label><label for="tab-return_offer" class="empty">留用机会</label></div><div class="panels"><section class="panel" id="panel-recruiting_bar"><div class="tc-h"><span class="tc-name">招聘 Bar</span><span class="badge none">未产出</span></div><p class="muted">本期没有这个主题的分析。</p></section><section class="panel" id="panel-wlb"><div class="tc-h"><span class="tc-name">WLB</span><span class="badge none">未产出</span></div><p class="muted">本期没有这个主题的分析。</p></section><section class="panel" id="panel-salary"><div class="tc-h"><span class="tc-name">薪资</span><span class="badge none">未产出</span></div><p class="muted">本期没有这个主题的分析。</p></section><section class="panel" id="panel-hc_trend"><div class="tc-h"><span class="tc-name">HC 趋势</span><span class="badge none">未产出</span></div><p class="muted">本期没有这个主题的分析。</p></section><section class="panel" id="panel-interview"><div class="tc-h"><span class="tc-name">面试特征</span><span class="badge none">未产出</span></div><p class="muted">本期没有这个主题的分析。</p></section><section class="panel" id="panel-return_offer"><div class="tc-h"><span class="tc-name">留用机会</span><span class="badge none">未产出</span></div><p class="muted">本期没有这个主题的分析。</p></section></div></div>
+<h2>事实对照</h2>
+<div class="facts-grid"><article class="fc"><div class="fc-h"><h3 class="co">中信证券</h3><span class="badge">券商</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">投行委</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p><span class="na">—</span></p></div></div><details class="exp"><summary>经历摘要</summary><p>发帖人介绍中信证券投行委有两批面试，下周为第一批，面试形式为无领导小组讨论加单面；本期分享模拟单面题目及中信证券常出题目，下期将做国泰海通 IBD 面试体验。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">中信证券</span><span class="tag">投行</span><span class="tag">面经</span><span class="tag">无领导小组讨论</span><span class="tag">单面</span><span class="tag">暑期实习</span><span class="tag">头部券商</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/6a23d4e70000000036000fb1?xsec_token=ABKXwRb0vZrxc6eP1ZwiU09r_tSOUiQL4kOuiLsolYFyg%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article><article class="fc"><div class="fc-h"><h3 class="co"><span class="na">—</span></h3><span class="badge">券商</span></div><div class="fc-grid"><div class="fc-f"><span class="fc-k">岗位</span><span class="fc-v">利率债投研/交易实习 · 自营</span></div><div class="fc-f"><span class="fc-k">城市</span><span class="fc-v"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">薪资</span><span class="fc-v hi"><span class="na">—</span></span></div><div class="fc-f"><span class="fc-k">强度</span><span class="fc-v hi"><span class="na">—</span></span></div></div><div class="bars"><div class="bar"><h4>书面门槛 recruiting_bar</h4><p><span class="na">—</span></p></div><div class="bar actual"><h4>真实门槛 actual_bar</h4><p><span class="na">—</span></p></div></div><details class="exp"><summary>经历摘要</summary><p>券商自营利率债投研/交易方向实习生，实习答辩已结束。四周学习内容涵盖基本面、政策面、资金面、情绪面四大分析框架，并实践「左侧交易+宽止盈宽止损」与「右侧交易+窄止盈窄止损」两种策略，以及国债期货震荡/单边行情回测。个人模拟交易业绩：胜率53%（交易110对），赔率85%（盈利约52000/亏损约60000）。</p></details><div class="fc-f2"><div class="fc-tags"><span class="tag">券商自营</span><span class="tag">固收</span><span class="tag">利率债</span><span class="tag">实习</span><span class="tag">交易员</span><span class="tag">投研</span><span class="tag">校招</span></div><a class="fc-src" href="https://www.xiaohongshu.com/explore/698aebb0000000001a02ae48?xsec_token=ABAneqtbtInI4dX0JXM4WP0AUlsw98LltIUvFQT8DKYTc%3D&amp;xsec_source=pc_search" target="_blank" rel="noopener noreferrer">原文 ↗</a></div></article></div>
+<footer><span>FinClue 金线索 · 本地阅读端</span>
+<span>数据源：小红书 · 渲染自 data/facts 与 data/pending</span>
+<span>每 3 天 10:00 自动更新</span></footer>
+</div></body></html>

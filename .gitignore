@@ -6,9 +6,6 @@
 # / author / source_url），推上去等于转载他人内容；data/ 里还有你自己的求职情报。
 data/
 
-# 站点是 data/ 的派生产物，随时能用 `run.py --stage render` 重建。
-site/
-
 # 飞书 app_token 与 table id。
 config/
 
