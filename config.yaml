@@ -269,7 +269,6 @@ dedup:
 # ---------------------------------------------------------------
 insight:
   window_days: 30              # 分析窗口
-  incremental_only: true       # 只增量分析，不重跑全量历史
   min_facts_for_pattern: 3     # 低于此值禁止输出 Pattern 层
   min_facts_for_full: 6        # 低于此值禁止输出完整四层
   topics:
