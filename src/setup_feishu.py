@@ -144,7 +144,7 @@ def setup(dry_run=False):
     print("=" * 62)
     print("")
     print("⚠️  还需要一步：把这个应用加为表格协作者，否则后续写入会 403。")
-    print("    应用 app_id = cli_aa01bbf3d5f8dbd3")
+    print("    应用 app_id 见 config.yaml 的 feishu.credential_file 所指文件")
     print("    在表格右上角「分享」里添加该应用为可编辑协作者。")
     return 0
 

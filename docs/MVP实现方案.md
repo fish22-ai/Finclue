@@ -72,7 +72,7 @@ config.yaml
 | 步 | 内容 | 产出 |
 |---|---|---|
 | 1 | 环境准备：装 `pyyaml`，建目录结构 | — |
-| 2 | 飞书：**新建两张表**、把 `cli_aa01bbf3d5f8dbd3` 加为协作者、写字段、填 `config.yaml` | 表可写 |
+| 2 | 飞书：**新建两张表**、把 `该自建应用（app_id 见 config.yaml 的 feishu.credential_file）` 加为协作者、写字段、填 `config.yaml` | 表可写 |
 | 3 | `fetch`：做 **小红书（socai）** 一个源 —— 它字段最全，最能验证抽取质量 | `raw/*.json` |
 | 4 | `clean` + `dedup` + `filter` | `clean/*.json` |
 | 5 | `extract`：接 agentrouter，跑通 1 条 | 结构化 JSON |
@@ -200,10 +200,10 @@ headers = {
 
 ## 6. 开工前置条件
 
-- [x] ~~飞书凭据~~ → **已解决**，`cli_aa01bbf3d5f8dbd3`，实测有效
+- [x] ~~飞书凭据~~ → **已解决**，`该自建应用（app_id 见 config.yaml 的 feishu.credential_file）`，实测有效
 - [x] ~~小红书源~~ → **已解决**，socai 已登录，正文/OCR/评论全量可取
 - [x] ~~合规条款是否为小红书开口子~~ → **已确认**（本人账号正常登录，非反爬绕过）
-- [ ] **新建两张多维表**，并把 `cli_aa01bbf3d5f8dbd3` 加为**协作者**（只给权限会 403）
+- [ ] **新建两张多维表**，并把 `该自建应用（app_id 见 config.yaml 的 feishu.credential_file）` 加为**协作者**（只给权限会 403）
 - [ ] 确认 `evidence` 字段方案（推荐方案 A：JSON 字符串，见 `docs/字段设计.md`）
 - [ ] 确认首轮小红书查询词库（`config.yaml` 里已给 8 个初稿）
 - [ ] 确认 LLM 上游：继续用 agentrouter 中转？

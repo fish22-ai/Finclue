@@ -219,7 +219,7 @@ socai xhs get-notes --note <NOTE_ID>=<XSEC_TOKEN> --ocr --num-comments 8 --prett
 **凭据已存在于 `D:\xhs-teardown\config\feishu.local.json`**，2026-09-13 实测有效：
 
 ```
-app_id: cli_aa01bbf3d5f8dbd3
+app_id: <见凭据文件，不写进本文件>
 domain: https://open.feishu.cn
 ```
 
@@ -303,12 +303,16 @@ domain: https://open.feishu.cn
 | LLM 客户端 | 实测通过 |
 | socai 采集 | 实测通过（修掉了 xsec_token 的坑） |
 
-**飞书表 token**（存在 `config/tables.json`）：
+**飞书表 token**：真实值在 `config/tables.json`（**该目录已 gitignore，不入库**）。
+
 ```
-app_token   = Nei2bizzOa9MI5skteNcMjJBnKf
-facts       = tblI55cVtgKRCRL9   (16 字段：13 可见 + 3 隐藏；2026-09-15 从 26 精简而来)
-insights    = tblztIIbw9ci2cwL   (12 字段)
+app_token   = <见 config/tables.json>
+facts       = <见 config/tables.json>   (16 字段：13 可见 + 3 隐藏)
+insights    = <见 config/tables.json>   (12 字段)
 ```
+
+⚠️ 本文件会随仓库公开（仓库是 public），所以真实的 app_token / table id / app_id
+**一律不要写回这里**。2026-09-19 已把原先写死在这儿的三个标识抹掉。
 建表脚本：`python src/setup_feishu.py`（幂等，可重复跑）
 
 ### 源的范围（用户 2026-09-13 决定）

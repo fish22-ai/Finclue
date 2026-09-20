@@ -289,13 +289,18 @@ feishu:
   # 实测 2026-09-13：tenant_access_token code=0，应用已是既有表的协作者。
   credential_file: "D:/xhs-teardown/config/feishu.local.json"
   # 该文件含 app_id / app_secret，权限 600，不入库不外传
-  app_id: cli_aa01bbf3d5f8dbd3
+  #
+  # app_id 已从本文件移除 —— 这个仓库是公开的。
+  # 它只是**标识**不是密钥（真正的 app_secret 在上面那个项目外的凭据文件里），
+  # 但没必要公开。代码从来不读这一项（feishu.py 的 _creds() 直接从
+  # credential_file 取 app_id + app_secret），所以这里留空不影响运行。
+  app_id: ""
   # ⚠️ 这些表是 wiki 内嵌多维表：URL 里的 token 是 wiki_token，
   #    不是 app_token。必须先经 wiki API 解析，见 feishu.resolved.json
   wiki_token_cache: "D:/xhs-teardown/config/feishu.resolved.json"
   tables:
     facts:
-      # 待用户新建后填入（新建后需把 cli_aa01bbf3d5f8dbd3 加为协作者，否则 403）
+      # 待用户新建后填入（新建后需把该应用加为协作者，否则 403）
       wiki_url: ""             # 例：https://xxx.feishu.cn/wiki/XXXX?table=tblXXXX
       app_token: ""            # wiki 解析后回填
       table_id: ""
