@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""洞察生成：读近 N 天事实 → LLM 六主题增量分析 → 写分析表。
+"""洞察生成：读近 N 天事实 → LLM 六主题分析 → 写分析表。
 
 样本量硬约束（同时写进了 prompt，这里做二次校验）：
   0     → 数据不足
@@ -26,7 +26,7 @@ def load_prompt():
     """从 prompts/generate_insights.md 抽 SYSTEM 与 USER 模板。
 
     ⚠️ SYSTEM 必须从 `## SYSTEM` 一直取到 `## USER 模板` 之前 ——
-       中间夹着 `## 分析主题`、`## 输出 JSON Schema`、`## 增量分析规则` 等小节。
+       中间夹着 `## 分析主题`、`## 输出 JSON Schema` 等小节。
        早先写成「取到下一个 ## 为止」，会把这些整段丢掉（同 extract.py 的坑）。
     """
     with io.open(PROMPT_FILE, encoding="utf-8") as f:
@@ -151,34 +151,7 @@ def fit_json(records, budget=FACTS_PROMPT_BUDGET):
     return json.dumps(kept, ensure_ascii=False, indent=1), len(kept)
 
 
-PREV_INSIGHT_KEYS = ["date", "topic", "finding", "finding_layer", "confidence"]
-PREV_INSIGHT_ISSUES = 3
-
-
-def read_previous_insights(exclude_date=None, issues=PREV_INSIGHT_ISSUES):
-    """读本地洞察存档（data/pending/insights_*.json），排除当天，供增量对比。
-
-    prompt 的增量规则要求模型对比历史结论、无实质变化时输出「无增量变化」。
-    这里以前硬编码成 "[]"，等于每期都从零重新论证，旧结论会反复重生。
-    只取最近 issues 期，且只取判断增量必需的字段 —— ai_analysis 是长篇复述
-    （单条常超 1000 字），6 主题 × 多期一起塞进去会把输入 token 推得很难看，
-    而它要回答的只是「这期和以前比有没有变」。
-    """
-    out = []
-    for d, p in reversed(local_dated_files("pending", prefix="insights_")):
-        if d == exclude_date:
-            continue
-        rows = [r for r in (read_json(p, []) or []) if isinstance(r, dict)]
-        if not rows:
-            continue
-        out.extend({k: r.get(k) for k in PREV_INSIGHT_KEYS} for r in rows)
-        issues -= 1
-        if issues <= 0:
-            break
-    return out
-
-
-# --------------------------------------------------------------- 校验
+FACTS_PROMPT_BUDGET = 60000
 LAYER_LIMIT = {"fact": 0, "pattern": 3, "interpretation": 3, "implication": 6}
 
 
@@ -248,8 +221,15 @@ def generate(window_days=None, dry_run=False):
     # n 取「真正喂进 prompt 的条数」，不是窗口里的总条数：超预算截断时两者不等，
     # 而 n 要用来校准 validate_insight 的幻觉守卫与层级阈值。
     facts_json, n = fit_json(facts)
-    prev = read_previous_insights(exclude_date=today())
-    LOG.info("增量对比：喂入历史洞察 %d 条", len(prev))
+    LOG.info("洞察分析：窗口 %d 天，%d 条事实", window_days, n_window)
+
+    if n_window == 0:
+        LOG.warning("窗口内没有事实数据 —— 所有主题将写入「数据不足」")
+
+    # n 取「真正喂进 prompt 的条数」，不是窗口里的总条数：超预算截断时两者不等，
+    # 而 n 要用来校准 validate_insight 的幻觉守卫与层级阈值。
+    facts_json, n = fit_json(facts)
+    LOG.info("本次喂入事实 %d 条", n)
 
     system, tpl = load_prompt()
     user = (tpl
@@ -257,9 +237,7 @@ def generate(window_days=None, dry_run=False):
             .replace("{{window_days}}", str(window_days))
             .replace("{{new_count}}", str(n))
             .replace("{{new_facts_json}}", facts_json)
-            .replace("{{recent_facts_json}}", facts_json)
-            .replace("{{previous_insights_json}}",
-                     json.dumps(prev, ensure_ascii=False, indent=1)))
+            .replace("{{recent_facts_json}}", facts_json))
 
     llm = LLM()
     lcfg = cfg["llm"]

@@ -1,8 +1,8 @@
 # 洞察生成 Prompt (Insight)
 
-> 用途：读取【Career Intelligence 事实表】近 N 天数据 → 生成增量洞察 → 写入【Career Insights 分析表】
+> 用途：读取【Career Intelligence 事实表】近 N 天数据 → 生成洞察 → 写入【Career Insights 分析表】
 > 调用方式：`temperature = 0.3`（允许归纳，但要求克制）
-> **增量原则：只分析本次新增 + 近 N 天窗口内的数据，不重跑全量历史**
+> **每日独立生成，不基于历史洞察修改**
 
 ---
 
@@ -86,33 +86,15 @@
 
 ---
 
-## 增量分析规则
-
-1. 输入包含两部分：`NEW_FACTS`（本次新增）与 `RECENT_FACTS`（近 N 天窗口历史）
-2. 若某主题在 `RECENT_FACTS` 中已有分析，本次只输出**变化部分**
-   - 新增了什么
-   - 是否与之前结论矛盾
-   - 之前结论是否需要修正
-3. 若与历史结论**无实质变化** → 输出 `{"topic": "<主题>", "finding": "无增量变化"}`，不重复写分析
-4. **不重跑全量历史**，不做趋势回测
-
----
-
 ## USER 模板
 
 ```
 【今日日期】{{today}}
 【分析窗口】近 {{window_days}} 天
-【本次新增事实数】{{new_count}}
+【本次事实数】{{new_count}}
 
---- NEW_FACTS（本次新增）---
+--- FACTS（本次窗口内所有事实）---
 {{new_facts_json}}
-
---- RECENT_FACTS（窗口内历史，用于交叉验证）---
-{{recent_facts_json}}
-
---- PREVIOUS_INSIGHTS（该窗口内已有分析，用于判断增量）---
-{{previous_insights_json}}
 
 请对六个主题逐个分析，输出 JSON 数组。只输出 JSON，不要任何解释、不要 markdown 代码块标记。
 ```
