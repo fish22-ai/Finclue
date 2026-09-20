@@ -32,7 +32,7 @@ import urllib.parse
 from common import LOG, ensure_dir, local_dated_files, path, read_json
 from schema import TOPICS
 
-SITE_DIR = path("site")
+SITE_DIR = path("docs")
 
 # 主题 → 中文名。取自 prompts/generate_insights.md 的「分析主题」小节，
 # 那边是这六个主题的权威写法，别另起一套。
