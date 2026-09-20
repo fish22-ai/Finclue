@@ -1,0 +1,25 @@
+# ── 不入库的东西 ──
+# 这个仓库是**公开**的，所以下面每一条都同时是「隐私边界」，别随手删。
+
+# 抓取到的原文与全部分析结果。
+# data/raw、data/clean 里是小红书上**他人发布的正文**（body / ocr_text / comments
+# / author / source_url），推上去等于转载他人内容；data/ 里还有你自己的求职情报。
+data/
+
+# 站点是 data/ 的派生产物，随时能用 `run.py --stage render` 重建。
+site/
+
+# 飞书 app_token 与 table id。
+config/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+Thumbs.db
+desktop.ini

@@ -1,0 +1,317 @@
+# Career Intelligence — 运行配置
+# 最后更新：2026-09-12
+# 说明：本文件只描述"抓什么、怎么跑"，不含业务逻辑。
+#       所有可用性标注均来自 2026-09-12 实测，见 docs/环境与数据源实测报告.md
+
+runtime:
+  timezone: Asia/Shanghai
+  output_dir: ./data
+  raw_dir: ./data/raw
+  state_file: ./data/seen_urls.jsonl   # 幂等：记录已处理 URL 的 hash
+  log_dir: ./data/logs
+  request_timeout: 20
+  retry: 2
+  retry_backoff_seconds: 5
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+# ---------------------------------------------------------------
+# AI 上游
+# ---------------------------------------------------------------
+llm:
+  provider: agentrouter            # 第三方中转，见 docs/ADR/0002
+  base_url: https://agentrouter.org/v1
+  # 凭据存放于 ~/.cc-switch/cc-switch.db -> providers.settings_config.env.ANTHROPIC_AUTH_TOKEN
+  # 不落盘到本仓库
+  credential_source: cc-switch-db
+  model: deepseek-v4-flash
+  # 该上游是推理模型，响应含 reasoning_content，会吃掉 max_tokens 预算
+  # extract 给 8192：LinkedIn JD 正文较长，4096 会撞 finish_reason=length
+  max_tokens:
+    extract: 8192
+    insight: 8192
+  temperature:
+    extract: 0
+    insight: 0.3
+  # 必须伪造 Claude Code 客户端指纹，否则返回 unauthorized client detected
+  required_headers:
+    user-agent: "claude-cli/2.0.0 (external, cli)"
+    anthropic-version: "2023-06-01"
+    anthropic-beta: "claude-code-20250219"
+  cost_per_call_usd_estimate: 0.015
+
+# ---------------------------------------------------------------
+# 数据源
+# 每类适配器：rss | json_api | html
+# enabled: 是否纳入 MVP 首轮
+# status: verified=已实测可用 / blocked=已实测不可用(勿重试) / todo=待验证
+# ---------------------------------------------------------------
+sources:
+
+  # --- 小红书（经 socai）：中文一手求职经历主力来源 ---
+  # socai 以本人账号 + 受管浏览器抓公开帖子，是唯一能填 actual_bar /
+  # return_offer / wlb 的源。裸 curl 会撞 302 登录墙，必须走 socai。
+  xhs_socai:
+    adapter: socai
+    enabled: true
+    status: verified
+    binary: "C:/Users/吃鱿鱼的鱿鱼/.socai/bin/socai.exe"
+    # 两阶段：先 search --preview 拿卡片（便宜），再 get-notes 取正文
+    queries:
+      - "券商 实习 面经"
+      - "投行 实习 offer"
+      - "行研 实习 经验"
+      - "金融实习 留用"
+      - "pe vc 实习 面经"
+      - "量化 实习 面试"
+      - "金融求职 秋招"
+      - "实习 薪资 券商"
+    filters:
+      # ⚠️ publish_time 只接受：一天内 / 一周内 / 半年内
+      #    传别的值（如「三个月内」）会导致 search_failed 返回 0 张卡片
+      publish_time: "半年内"
+      # 直接排除视频笔记：视频没有图，--ocr 拿不到内容，正文往往只有一句标题
+      note_type: "图文"
+    num_notes_per_query: 30        # 卡片数
+    num_comments: 8                # 每篇取多少评论（评论常含一手补充信息）
+    ocr: true                      # 必须开：金融内容大量在图片里（JD 截图、岗位表）
+    # 选帖规则：按点赞排序取 Top N 高赞池 → 池中随机抽 M 篇（不直接取 Top M）
+    high_like_pool: 40             # 池子要明显大于 posts_to_fetch，否则等于没随机
+    posts_to_fetch: 15             # 每轮取多少篇正文（实测每篇约 40-60s，含 OCR）
+    rate_limit_seconds: 20         # 抓取放缓，不并发，避免触发风控
+    timeout_seconds: 900           # socai 单次调用可能很慢（OCR + 打开笔记）
+
+    # --- 候选池复用（2026-09-18 加）-----------------------------------
+    # 搜索阶段要把 8 个词各跑一遍（每轮 socai ~70s + 20s 限速 ≈ 90s，整段约 12min），
+    # 只为建一个池子抽出 15 篇正文。而搜索卡片里的 xsec_token 是可以跨天复用的：
+    # 2026-09-18 实测，09-13（5 天前）那份 artifact 里的 token 仍能正常取到正文。
+    # 所以池子落盘到 data/pool/xhs.json，未抓过的卡够多时整段跳过搜索。
+    #
+    # ⚠️ 这个值必须大于「两次运行之间的间隔」，否则池子每次都被判定过期、白建。
+    #    定时任务是每 3 天跑一次（scripts\install_task.ps1），所以取 4 而不是 3：
+    #    池子在 D0 10:12 写入，D3 10:00 再跑时距写入已 ≥3 天，用 3 会被判过期。
+    #    取 4 的效果是「每 2 次运行重搜一次」，卡内 token 最多 3 天龄，
+    #    距实测的安全边界（5 天）留 2 天余量。
+    pool_ttl_days: 4
+    pool_min_fresh: 30             # 未抓过的卡低于此值才重新搜索；够多就跳过
+    pool_max_fails: 2              # 同一张卡连续取正文失败几次后不再抽它（防僵尸卡空转）
+
+  # --- Reddit RSS：英文一手求职经历 ---
+  # 注意：JSON API 被封(403)，RSS 端点可用。不要改用 /new.json
+  reddit_rss:
+    adapter: rss
+    enabled: false            # 用户要求：只做小红书（2026-09-13）
+    status: verified
+    url_template: "https://www.reddit.com/r/{sub}/.rss"
+    subs:
+      - FinancialCareers      # 金融求职主阵地（实测 25 条/次）
+      - quant                 # 量化
+      - cscareerquestions     # 科技/金科，含少量 quant 岗
+      - FinancialEngineering  # 金融工程，与量化互补
+    # 注意：subreddit 名大小写不敏感，FinancialCareers 与 financialcareers 是同一个版块
+    rate_limit_seconds: 15     # 实测 5s 会撞 429，放宽到 15s
+    max_items_per_run: 25
+
+  # --- LinkedIn 公开岗位：JD 侧最高质量来源 ---
+  # 无需登录，返回结构化 HTML 卡片，每页 10 条
+  linkedin_jobs:
+    adapter: json_api          # HTML 卡片解析，但结构稳定
+    enabled: false             # 用户要求：不要抓 LinkedIn（2026-09-13）
+    status: verified
+    url_template: "https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords={keywords}&location={location}&start={start}"
+    queries:
+      - keywords: "investment banking"
+        location: "Hong Kong"
+      - keywords: "equity research"
+        location: "Hong Kong"
+      - keywords: "private equity"
+        location: "Hong Kong"
+      - keywords: "quantitative research"
+        location: "Hong Kong"
+    pages_per_query: 2         # start=0,10
+    # 卡片只有 标题/公司/地点，没有 JD 正文 —— 必须拉详情才能填 recruiting_bar
+    fetch_details: true
+    max_details: 30            # 控制详情请求量；优先拉非资深岗
+    rate_limit_seconds: 3
+
+  # --- eFinancialCareers：金融垂直招聘 ---
+  efinancialcareers:
+    adapter: html
+    enabled: false             # 结构解析待做，MVP 第二轮
+    status: verified
+    urls:
+      - "https://www.efinancialcareers.com"
+      - "https://www.efinancialcareers.cn"
+    selector_hint: "a[href^='/jobs/']"
+
+  # --- Bing 搜索：泛化补源 ---
+  # 结果走 r.bing.com/ck/a?...&u=a1<base64> 跳转，需要解码
+  bing_search:
+    adapter: html
+    enabled: false             # MVP 第二轮；首轮先跑通结构化源
+    status: verified
+    url_template: "https://www.bing.com/search?q={query}&setlang=zh-CN"
+    queries:
+      - "券商 行研 实习 面经"
+      - "投行 暑期实习 offer 分享"
+      - "PE VC 实习 面试经验"
+    rate_limit_seconds: 10
+
+  # --- 以下为已实测不可用，仅作记录，不要启用 ---
+  # 注意：小红书不在此列 —— 裸 curl 撞登录墙，但 socai 能抓，见上 xhs_socai
+  _blocked:
+    - name: reddit_json_api
+      status: blocked
+      reason: "403 Forbidden（RSS 端点可用，见 reddit_rss）"
+    - name: 1point3acres
+      status: blocked
+      reason: "403 Cloudflare 'Just a moment...'"
+    - name: wallstreetoasis
+      status: blocked
+      reason: "403 Cloudflare 'Just a moment...'"
+    - name: zhihu
+      status: blocked
+      reason: "403 / 302 登录墙"
+    - name: glassdoor
+      status: blocked
+      reason: "403"
+    - name: indeed
+      status: blocked
+      reason: "403"
+    - name: liepin
+      status: blocked
+      reason: "000 无法连接"
+    - name: nowcoder_api
+      status: blocked
+      reason: "返回 HTML 壳，非真 API，需逆向真实 XHR"
+    - name: rsshub
+      status: blocked
+      reason: "403"
+
+# ---------------------------------------------------------------
+# 过滤
+# ---------------------------------------------------------------
+filter:
+  # 相关性关键词（命中任一即通过初筛）
+  relevance_keywords:
+    - 实习
+    - 校招
+    - 暑期
+    - 秋招
+    - 春招
+    - 面经
+    - 面试
+    - offer
+    - 留用
+    - 转正
+    - 薪资
+    - WLB
+    - intern
+    - internship
+    - analyst
+    - summer
+    - graduate
+    - return offer
+    - compensation
+    - salary
+    - interview
+  # 机构筛选范围
+  institution_keywords:
+    - 券商
+    - 投行
+    - 行研
+    - PE
+    - VC
+    - 公募
+    - 私募
+    - 资管
+    - 银行
+    - 信托
+    - 保险
+    - 量化
+    - 金科
+    - 财资
+    - 风控
+    - 财会
+    - securities
+    - investment bank
+    - asset management
+    - hedge fund
+  # 噪音黑名单（命中即丢弃）
+  blocklist_keywords:
+    - 付费咨询
+    - 简历修改
+    - 内推码
+    - 加微信
+    - 课程报名
+    - 限时优惠
+    - 扫码进群
+    - "DM me"
+    - "link in bio"
+  # 最短正文长度，低于此值直接丢弃
+  min_content_length: 120
+  # 是否调用 LLM 做二次价值判断（成本换质量）
+  llm_value_check: false
+
+# ---------------------------------------------------------------
+# 去重
+# ---------------------------------------------------------------
+dedup:
+  # 一级：URL 归一化后精确匹配（去 query/fragment/utm）
+  url_normalize: true
+  # 二级：标题 SimHash 近似匹配
+  title_simhash: true
+  simhash_threshold: 3
+  # 三级：正文前 500 字指纹
+  content_fingerprint: true
+
+# ---------------------------------------------------------------
+# 洞察分析
+# ---------------------------------------------------------------
+insight:
+  window_days: 30              # 分析窗口
+  incremental_only: true       # 只增量分析，不重跑全量历史
+  min_facts_for_pattern: 3     # 低于此值禁止输出 Pattern 层
+  min_facts_for_full: 6        # 低于此值禁止输出完整四层
+  topics:
+    - recruiting_bar
+    - wlb
+    - salary
+    - hc_trend
+    - interview
+    - return_offer
+
+# ---------------------------------------------------------------
+# 飞书多维表
+# ---------------------------------------------------------------
+feishu:
+  base_url: https://open.feishu.cn/open-apis
+  # 凭据已存在（8 月 xhs-teardown 项目建立），复用同一个自建应用。
+  # 实测 2026-09-13：tenant_access_token code=0，应用已是既有表的协作者。
+  credential_file: "D:/xhs-teardown/config/feishu.local.json"
+  # 该文件含 app_id / app_secret，权限 600，不入库不外传
+  app_id: cli_aa01bbf3d5f8dbd3
+  # ⚠️ 这些表是 wiki 内嵌多维表：URL 里的 token 是 wiki_token，
+  #    不是 app_token。必须先经 wiki API 解析，见 feishu.resolved.json
+  wiki_token_cache: "D:/xhs-teardown/config/feishu.resolved.json"
+  tables:
+    facts:
+      # 待用户新建后填入（新建后需把 cli_aa01bbf3d5f8dbd3 加为协作者，否则 403）
+      wiki_url: ""             # 例：https://xxx.feishu.cn/wiki/XXXX?table=tblXXXX
+      app_token: ""            # wiki 解析后回填
+      table_id: ""
+    insights:
+      wiki_url: ""
+      app_token: ""
+      table_id: ""
+  # 写入策略
+  write:
+    # ⚠️ 2026-09-18 起关闭：阅读端改为本地静态站（site/，见 src/render.py），
+    #    洞察窗口改读 data/facts/（见 insight.read_facts），飞书降级为**可选镜像**。
+    #    代价：关闭期间两张表会出现一段缺口 —— 记录本身不丢，都在 data/pending/，
+    #    将来要恢复写入时，那段历史需要单独回填（目前无回填脚本，用户明确「只记档」）。
+    #    改回 true 即可恢复推送，代码路径一直保留。
+    enabled: false
+    batch_size: 50             # 单次 API 调用最多写入条数
+    idempotency_key: source_url
+    on_conflict: skip          # skip | update
+    rate_limit_seconds: 0.5

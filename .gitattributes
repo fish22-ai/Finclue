@@ -1,0 +1,10 @@
+# 默认交给 Git 规范化换行
+* text=auto
+
+# 【必须】.bat 保持 CRLF。
+# LF 换行的 .bat 在 cmd 下会被边读边解析而出错（dailybrief 与 career-intel 都踩过）。
+# 注意这不涉及 BOM —— 那个坑是反的：.bat 绝不能有 BOM，.ps1 必须有（见 MEMORY.md）。
+*.bat text eol=crlf
+
+# .vbs 保持 CRLF（WSH 对 LF-only 的 .vbs 解析不稳定）
+*.vbs text eol=crlf
