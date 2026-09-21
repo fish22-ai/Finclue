@@ -7,7 +7,7 @@
  *
  * 版本号：改了静态资源清单（ASSETS）时要手动 +1，否则老缓存不清。
  */
-var CACHE = "finclue-v1";
+var CACHE = "finclue-v2";
 var ASSETS = [
   "./",
   "./index.html",
