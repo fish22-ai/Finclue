@@ -34,6 +34,21 @@ from schema import TOPICS
 
 SITE_DIR = path("docs")
 
+# PWA 头部：manifest / 图标 / theme-color / SW 注册。
+# 相对路径（不带前导斜杠）——GitHub Pages 是项目页（/Finclue/ 前缀），本地 http
+# 服务也是根路径，两种场景都能命中。
+# SW 注册做了协议守卫：file:// 下 navigator.serviceWorker 不可用（见上面设计
+# 约束 2），守卫让它在 file:// 打开时静默跳过，只有 http(s)（GitHub Pages /
+# 本地 serve）才注册。
+# 注意：PWA_HEAD 里不能出现裸 %，否则会炸掉下面的 % 模板。
+PWA_HEAD = """<meta name="theme-color" media="(prefers-color-scheme:light)" content="#f8f4ed">
+<meta name="theme-color" media="(prefers-color-scheme:dark)" content="#1a1614">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<script>if("serviceWorker" in navigator&&location.protocol.indexOf("http")===0)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})</script>"""
+
 # 主题 → 中文名。取自 prompts/generate_insights.md 的「分析主题」小节，
 # 那边是这六个主题的权威写法，别另起一套。
 TOPIC_LABELS = {
@@ -489,6 +504,7 @@ def render_page(date_str, issue, dates):
 <html lang="zh-CN"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FinClue 金线索 · %(date)s</title>
+%(pwahead)s
 <style>%(css)s%(tabcss)s</style></head><body><div class="wrap">
 <header><span class="logo">★</span><div class="hd">
 <h1>FinClue <span class="cn">金线索</span></h1>
@@ -503,6 +519,7 @@ def render_page(date_str, issue, dates):
 <span>每 3 天 10:00 自动更新</span></footer>
 </div></body></html>
 """ % {"date": esc(date_str), "css": CSS, "tabcss": tab_css(TOPICS),
+       "pwahead": PWA_HEAD,
        "nav": nav, "topics": topics_html, "facts": facts_html}
 
 

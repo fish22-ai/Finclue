@@ -1,0 +1,17 @@
+{
+  "name": "FinClue 金线索",
+  "short_name": "FinClue",
+  "description": "金融求职情报日报：六主题洞察 + 来源事实对照",
+  "lang": "zh-CN",
+  "id": "./index.html",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f8f4ed",
+  "theme_color": "#f8f4ed",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

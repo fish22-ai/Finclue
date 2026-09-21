@@ -19,7 +19,7 @@ REM Line endings must stay CRLF.
 
 setlocal
 
-set "PAGE=%~dp0..\site\index.html"
+set "PAGE=%~dp0..\docs\index.html"
 if not exist "%PAGE%" (
     echo [open] page not found: "%PAGE%"
     echo        run:  python src\run.py --stage render
