@@ -97,7 +97,7 @@ if errorlevel 1 (
     echo     - socai daemon/CDP 异常：见 data\logs\%TODAY%.log >> "%LOG%"
     echo     - LLM 上游不可用：搜「LLM 调用最终失败」 >> "%LOG%"
     echo     - 候选池空了且搜索失败：搜「没有未抓过的卡片」 >> "%LOG%"
-    echo     - 浏览器窗口没藏住或没关掉：搜「browser_guard」 >> "%LOG%"
+    echo     - 浏览器窗口没藏住或没关掉：看 data\logs\browser_guard.log >> "%LOG%"
     echo     - 站点没更新：搜「渲染失败」。注意渲染是**非致命**的， >> "%LOG%"
     echo       它不会让本行触发；下次运行会重渲所有期，自己会补上 >> "%LOG%"
     exit /b 1
