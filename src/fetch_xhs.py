@@ -16,6 +16,7 @@ import io
 import json
 import os
 import random
+import re
 import shutil
 import subprocess
 import tempfile
@@ -156,6 +157,48 @@ def search_cards(query, num_notes=30, filters=None, timeout=300):
     if cards and not cards[0].get("xsec_token"):
         LOG.warning("  卡片缺 xsec_token —— artifact 没读到，正文会取不到")
     return cards
+
+
+def author_cards(author_id, num_notes=24, timeout=600):
+    """定向作者：拿该博主主页的笔记卡片。返回 (cards, profile)。
+
+    与 search 的区别：搜索是「广撒网」，这个是「点名要谁」。
+    用户指定的博主（如 eco413 金融老兵）内容命中率远高于关键词搜索，
+    所以选帖时给它们优先名额。
+
+    ⚠️ author_id 必须取主页 URL 里 /user/profile/<id> 的尾段（24 位 hex），
+       **不是**主页上显示的「小红书号」（那是用户自定义的，如 eco413）。
+       直接拿小红书号请求会返回 ok=true 但 profile 全空的假成功 —— 实测
+       2026-09-29。定位 user id 的办法：搜「<小红书号>」这个关键词，
+       结果页的用户卡片会写「小红书号：xxx」（在 page_ocr_text 里），
+       同一份结果里对应卡片的 author_id 就是它。
+    """
+    args = ["xhs", "author", str(author_id), "--preview",
+            "--num-notes", str(num_notes), "--pretty"]
+    data, run_dir = run_socai(args, timeout=timeout)
+    if not data:
+        return [], {}
+
+    reason = data.get("reason")
+    if reason == "login_required":
+        LOG.error("  小红书登录态失效 —— 需要人工重新扫码登录 socai")
+        raise RuntimeError("xhs_login_required")
+    if data.get("ok") is False:
+        LOG.warning("  作者页读取失败：%s", reason or data.get("error"))
+
+    art = _read_artifact(data, run_dir) or {}
+    prof = art.get("profile") or data.get("profile") or {}
+    cards = []
+    for c in (prof.get("note_cards") or []):
+        if not c.get("note_id"):
+            continue
+        c = dict(c)
+        # 作者卡片把 URL 叫 link，search 卡片叫 url —— 统一成 url，
+        # 否则 merge_pool / 记录里的 source_url 会空。
+        if not c.get("url"):
+            c["url"] = c.get("link")
+        cards.append(c)
+    return cards, prof
 
 
 def fetch_notes(note_refs, num_comments=8, ocr=True, timeout=900):
@@ -313,8 +356,12 @@ def pool_fresh_cards(pool, seen, max_fails=2):
     return out
 
 
-def merge_pool(pool, cards, query):
-    """把搜索结果并进池子。已有卡片刷新元信息与 token，保留 fetched_at / fail_count。"""
+def merge_pool(pool, cards, query, origin="search", author_id=None):
+    """把抓到的卡片并进池子。已有卡片刷新元信息与 token，保留 fetched_at / fail_count。
+
+    origin: "search"（关键词搜来的）| "author"（定向博主主页抓来的）。
+            定向博主的卡在选帖时优先 —— 用户点名要的人，命中率比关键词高。
+    """
     now = _now_iso()
     into = pool.setdefault("cards", {})
     added = 0
@@ -334,6 +381,10 @@ def merge_pool(pool, cards, query):
             for k in ("title", "likes", "type", "url", "author"):
                 if c.get(k) not in (None, ""):
                     cur[k] = c[k]
+            # 同一个博主既被搜索命中、又在定向名单里 → 升级为 author（优先）
+            if origin == "author":
+                cur["origin"] = "author"
+                cur["author_id"] = author_id or c.get("author_id") or cur.get("author_id")
         else:
             into[nid] = {
                 "note_id": nid,
@@ -343,6 +394,8 @@ def merge_pool(pool, cards, query):
                 "type": c.get("type"),
                 "url": c.get("url"),
                 "author": c.get("author"),
+                "author_id": c.get("author_id") or author_id,
+                "origin": origin,
                 "query": query,
                 "first_seen": now,
                 "last_seen": now,
@@ -379,11 +432,70 @@ def mark_pool_failed(pool, note_ids):
     return n
 
 
+def _has_career_signal(card) -> bool:
+    """标题里有没有「职业/工作体验」信号词。
+
+    定向博主的卡常用这个做**排序偏好**（不是硬过滤）：像「固收民间科学家」
+    这类博主一半内容是技术科普（同业存单框架、质押回购、REITs 制度……），
+    抽取器必然判 irrelevant，白白烧掉抽取名额（2026-09-29 实测 8 个定向
+    名额只出 1 条事实）。带信号的排前面，科普的自然沉底但不会永远进不了
+    高赞池 —— 万一哪天他真写了从业体验，照样能被抽到。
+    """
+    title = (card.get("title") or "")
+    return bool(_CAREER_SIGNAL_RE.search(title))
+
+
+_CAREER_SIGNAL_RE = re.compile(
+    r"就业|去向|岗位|薪资|待遇|薪酬|工资|年薪|总包|体验|感受|日常|加班|强度"
+    r"|wlb|WLB|离职|跳槽|晋升|职级|offer|Offer|OFFER|面试|秋招|春招|暑期"
+    r"|实习|留用|转正|工作|从业|在职|牛马|打工人|招聘|校招|应届"
+)
+
+
+def _pick_cards(fresh, pool_size, pick, label, career_first=False):
+    """从「未抓过」的卡里选：图文优先 → 高赞池 → 池内随机抽。
+
+    先建高赞池再随机抽，是为了避免每次都抓同一批头部热帖 ——
+    池子必须明显大于 pick 才有意义（见 config 里 high_like_pool 的注释）。
+    career_first：True 时职业信号词优先于赞数排序（定向博主用，见
+    _has_career_signal 的注释）。
+    """
+    if not fresh or pick <= 0:
+        return []
+    # 优先图文笔记：视频笔记没有图，--ocr 拿不到东西，正文往往只有一句标题
+    images = [c for c in fresh if (c.get("type") or "") == "image"]
+    videos = [c for c in fresh if (c.get("type") or "") != "image"]
+    if len(images) >= pool_size:
+        ranked = images
+        LOG.info("[%s] 未抓过的图文 %d 条 ≥ 池大小 %d，只用图文笔记",
+                 label, len(images), pool_size)
+    else:
+        ranked = images + videos
+        LOG.info("[%s] 未抓过的图文仅 %d 条，补入 %d 条其他类型",
+                 label, len(images), len(videos))
+    if career_first:
+        n_sig = sum(1 for c in ranked if _has_career_signal(c))
+        ranked.sort(key=lambda c: (1 if _has_career_signal(c) else 0,
+                                   _likes_int(c.get("likes"))), reverse=True)
+        LOG.info("[%s] 职业信号卡 %d/%d 条排前（技术科普沉底）",
+                 label, n_sig, len(ranked))
+    else:
+        ranked.sort(key=lambda c: _likes_int(c.get("likes")), reverse=True)
+
+    top = ranked[:pool_size]
+    n = min(pick, len(top))
+    got = random.sample(top, n)
+    LOG.info("[%s] 未抓过 %d 条 → 高赞池 %d 条 → 随机抽 %d 条",
+             label, len(fresh), len(top), n)
+    return got
+
+
 def harvest(source_cfg=None):
     """小红书采集主流程。返回 canonical record 列表。
 
     在原有「搜索 → 取正文」两阶段之外，多了一层跨天候选池（data/pool/xhs.json）：
     未抓过的卡够多就整段跳过搜索阶段（约 12 分钟）。
+    另有一条独立入口：定向博主（config 的 authors），每轮必跑、选帖优先。
     """
     cfg = load_config()
     s = source_cfg or cfg["sources"]["xhs_socai"]
@@ -399,6 +511,9 @@ def harvest(source_cfg=None):
     ttl_days = int(s.get("pool_ttl_days", 4))
     min_fresh = int(s.get("pool_min_fresh", 30))
     max_fails = int(s.get("pool_max_fails", 2))
+    authors = s.get("authors") or []
+    author_num_notes = int(s.get("author_num_notes", 24))
+    author_pick = int(s.get("author_pick", 5))
 
     seen = load_seen()
     pool = load_pool()
@@ -407,6 +522,35 @@ def harvest(source_cfg=None):
     LOG.info("候选池：共 %d 张，未抓过 %d 张，%s",
              len(pool.get("cards") or {}), len(fresh),
              "在 %d 天有效期内" % ttl_days if in_ttl else "已过期，需刷新")
+
+    # ---- 阶段零：定向博主（每轮必跑）
+    # 用户点名的博主内容命中率最高，所以**不参与**「池子够用就跳过搜索」那套优化 ——
+    # 否则池子一满，人家新发的笔记要等 TTL 过期才可能进来。
+    # 单次 preview 约 25s，几个号不到 1 分钟，代价可接受。
+    if authors:
+        for a in authors:
+            aid = (a or {}).get("id") if isinstance(a, dict) else a
+            label = ((a or {}).get("name") if isinstance(a, dict) else "") or aid
+            if not aid:
+                continue
+            LOG.info("定向博主：%s", label)
+            try:
+                cards, prof = author_cards(aid, author_num_notes, timeout)
+            except RuntimeError as e:
+                LOG.error("  终止：%s", e)
+                raise
+            LOG.info("  主页 %s（粉丝 %s，收集 %d 张卡）",
+                     prof.get("display_name") or "-",
+                     prof.get("followers") or "-", len(cards))
+            if not cards:
+                LOG.warning("  没拿到卡片 —— 确认 authors[].id 是主页 URL 里的 "
+                            "user id（24 位 hex），不是主页显示的「小红书号」")
+            LOG.info("  新增入池 %d 张",
+                     merge_pool(pool, cards, "author:%s" % aid,
+                                origin="author", author_id=aid))
+            time.sleep(sleep_s)
+        save_pool(pool)
+        fresh = pool_fresh_cards(pool, seen, max_fails)
 
     # ---- 阶段一：按需搜索（池子够用就整段跳过）
     if in_ttl and len(fresh) >= min_fresh:
@@ -431,25 +575,17 @@ def harvest(source_cfg=None):
         LOG.warning("小红书：没有未抓过的卡片（池子空了，等 TTL 过期重搜）")
         return []
 
-    # ---- 选帖：只从「未抓过」的卡里选 → 高赞池 → 池内随机抽
-    # 优先图文笔记：视频笔记没有图，--ocr 拿不到东西，正文往往只有一句标题
-    images = [c for c in fresh if (c.get("type") or "") == "image"]
-    videos = [c for c in fresh if (c.get("type") or "") != "image"]
-    if len(images) >= pool_size:
-        ranked = images
-        LOG.info("未抓过的图文笔记 %d 条 ≥ 池大小 %d，只用图文笔记",
-                 len(images), pool_size)
-    else:
-        ranked = images + videos
-        LOG.info("未抓过的图文笔记仅 %d 条，补入 %d 条其他类型",
-                 len(images), len(videos))
-    ranked.sort(key=lambda c: _likes_int(c.get("likes")), reverse=True)
-
-    top = ranked[:pool_size]
-    n = min(pick, len(top))
-    chosen = random.sample(top, n)
-    LOG.info("未抓过 %d 条 → 高赞池 %d 条 → 随机抽 %d 条",
-             len(fresh), len(top), n)
+    # ---- 选帖：先给定向博主留名额，余下名额再给关键词搜来的卡
+    author_fresh = [c for c in fresh if c.get("origin") == "author"]
+    search_fresh = [c for c in fresh if c.get("origin") != "author"]
+    chosen = []
+    if author_fresh and author_pick > 0:
+        chosen += _pick_cards(author_fresh, pool_size,
+                              min(author_pick, pick), "定向博主",
+                              career_first=True)
+    if len(chosen) < pick:
+        chosen += _pick_cards(search_fresh, pool_size,
+                              pick - len(chosen), "关键词")
 
     # ---- 阶段二：逐条取正文（逐条调用，便于单条失败不影响其他）
     records, got, failed = [], [], []
@@ -487,7 +623,9 @@ def harvest(source_cfg=None):
                 "comments": comments,
                 "hashtags": e.get("hashtags") or [],
                 "location": e.get("location") or "",
-                "query": None,
+                # 来源：关键词（如 "券商 工作体验"）或定向博主（"author:<user_id>"）。
+                # 池子卡片自带这个字段，带上便于回溯「这条是谁带来的」。
+                "query": c.get("query"),
             })
         time.sleep(sleep_s)
 

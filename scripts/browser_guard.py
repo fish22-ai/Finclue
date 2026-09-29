@@ -49,7 +49,7 @@ import time
 import psutil
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-LOG = os.path.join(ROOT, "data", "logs", "cron.log")
+LOG = os.path.join(ROOT, "data", "logs", "browser_guard.log")
 
 # socai 的 managed Chrome 一定带这个 profile 目录；用户日常的 Chrome 不带。
 PROFILE_MARKS = (os.path.join(".socai", "chrome-profile"), ".socai/chrome-profile")
@@ -66,6 +66,15 @@ GONE_GRACE = 45
 DEFAULT_CHILD_TIMEOUT = 90 * 60
 
 user32 = ctypes.WinDLL("user32", use_last_error=True)
+try:
+    dwmapi = ctypes.WinDLL("dwmapi")
+except OSError:          # 老系统没有 dwmapi 也能跑，只是退回纯屏幕外停靠
+    dwmapi = None
+
+# DWM 隐身属性：cloak 后窗口**完全不渲染到屏幕**（比挪屏幕外更彻底，
+# Alt+Tab、Win+方向键、误点任务栏都找不出来），但 IsWindowVisible 仍为 TRUE、
+# 进程照常跑。不是最小化 —— 不触发 Chrome 的 document.hidden / rAF 节流路径。
+DWMWA_CLOAK = 13
 
 EnumWindowsProc = ctypes.WINFUNCTYPE(ctypes.c_bool, wt.HWND, wt.LPARAM)
 
@@ -87,10 +96,13 @@ _log_lock = threading.Lock()
 
 
 def log(msg: str) -> None:
-    """写 cron.log（跟 daily.bat 同一个诊断入口，格式对齐）。
+    """写 data/logs/browser_guard.log（guard 专属日志）。
 
-    只写文件、不 print —— daily.bat 里整条命令的 stdout 已经重定向到同一个
-    cron.log，再 print 就会每行重复两遍。
+    为什么不写 cron.log：daily.bat 用 `>> cron.log` 重定向 guard 的 stdout，
+    这个句柄在整个 guard 进程期间都被 cmd 占着 —— 进程内任何 append 都会
+    PermissionError，重试和「退出前回写」都没用（2026-09-29 实测丢 5 行）。
+    所以 guard 落自己的文件，排查时两个日志都看：cron.log（流水线）+
+    browser_guard.log（窗口隐藏/关闭）。
     """
     line = "[%s] browser_guard: %s" % (time.strftime("%Y/%m/%d %H:%M:%S"), msg)
     with _log_lock:
@@ -98,8 +110,8 @@ def log(msg: str) -> None:
             os.makedirs(os.path.dirname(LOG), exist_ok=True)
             with open(LOG, "a", encoding="utf-8") as f:
                 f.write(line + "\n")
-        except OSError as exc:
-            print("%s  (写日志失败：%s)" % (line, exc), file=sys.stderr, flush=True)
+        except OSError:
+            pass  # 诊断日志不值得打断主流程
 
 
 # --------------------------------------------------------------------------
@@ -165,11 +177,31 @@ def _offscreen_xy() -> tuple[int, int]:
     return vx - vw - 200, vy
 
 
+def _cloak(hwnd: int, on: bool = True) -> bool:
+    """DWM 隐身开关。返回是否成功。"""
+    if dwmapi is None:
+        return False
+    val = ctypes.c_int(1 if on else 0)
+    rc = dwmapi.DwmSetWindowAttribute(wt.HWND(hwnd), DWMWA_CLOAK,
+                                      ctypes.byref(val), ctypes.sizeof(val))
+    return rc == 0
+
+
+def _cloaked(hwnd: int) -> bool:
+    if dwmapi is None:
+        return False
+    val = ctypes.c_int(0)
+    dwmapi.DwmGetWindowAttribute(wt.HWND(hwnd), DWMWA_CLOAK,
+                                 ctypes.byref(val), ctypes.sizeof(val))
+    return bool(val.value)
+
+
 def _park(hwnd: int, x: int, y: int) -> bool:
     ok = bool(user32.SetWindowPos(hwnd, 0, x, y, 0, 0,
                                   SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE))
     if ok:
-        # 顺手摘掉任务栏按钮（失败无所谓，屏幕外已经够用了）
+        _cloak(hwnd, True)   # 隐身为主，屏幕外坐标只是兜底
+        # 顺手摘掉任务栏按钮（失败无所谓，已经隐身了）
         try:
             ex = user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
             new_ex = (ex | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW
@@ -179,6 +211,7 @@ def _park(hwnd: int, x: int, y: int) -> bool:
                 user32.ShowWindow(hwnd, SW_SHOWNOACTIVATE)
                 user32.SetWindowPos(hwnd, 0, x, y, 0, 0,
                                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE)
+                _cloak(hwnd, True)   # SW_HIDE/SHOW 会重置 cloak，补一次
         except OSError:
             pass
     return ok
@@ -288,7 +321,8 @@ def cmd_run(child: list[str], child_timeout: int) -> int:
 
     rc = 1
     try:
-        proc = subprocess.Popen(child, cwd=ROOT)
+        env = dict(os.environ, BROWSER_GUARD_ACTIVE="1")   # 子脚本用来判断自己有没有被包住
+        proc = subprocess.Popen(child, cwd=ROOT, env=env)
         try:
             rc = proc.wait(timeout=child_timeout)
         except subprocess.TimeoutExpired:
@@ -316,9 +350,9 @@ def cmd_probe() -> int:
         print("目标屏幕外坐标：(%d, %d)" % (x, y))
         for hwnd in _windows_of(set(pids)):
             left, top, w, h = _rect(hwnd)
-            print("  窗口 0x%X %r  %dx%d @ (%d, %d)  已藏=%s"
+            print("  窗口 0x%X %r  %dx%d @ (%d, %d)  屏幕外=%s  已隐身(cloak)=%s"
                   % (hwnd, _window_text(hwnd)[:40], w, h, left, top,
-                     abs(left - x) <= 8))
+                     abs(left - x) <= 8, _cloaked(hwnd)))
     all_chrome = [p.info["pid"] for p in psutil.process_iter(["pid", "name"])
                   if (p.info["name"] or "").lower() == "chrome.exe"]
     print("本机 chrome.exe 总数：%d（其中 socai 的 %d 个）"

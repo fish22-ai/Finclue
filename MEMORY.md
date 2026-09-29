@@ -267,6 +267,69 @@ python "%ROOT%\scripts\browser_guard.py" --run -- python "%ROOT%\src\run.py" --s
 **socai 限制**：`activated: false`（免费版）。telemetry 显示 `xhs search` 已进入工具层，
 失败仅因 CDP 传输，未见权限门禁 → 免费版可跑，但 `--ocr` 是否受限需持续观察。
 
+#### 抓取取向：正职体验为主（2026-09-29 用户定，改 queries 前先读）
+
+用户原话：「量化少抓，我估计大概率进不去；主要抓正职体验，实习无所谓的」。
+
+- `queries` 已重排：**正职体验 5 条**（券商工作体验 / 投行打工日常 / 行研从业
+  真实感受 / 金融打工人日常 / 券商加班强度）为主线，`金融 秋招`、`券商 实习 留用`
+  两条入口类降为次要，量化只留 1 条（`量化 工作体验`，且偏正职而非实习）。
+  原来 8 条里 7 条是实习/校招取向 —— 与用户意图相反。
+- `filter.relevance_keywords` 补了正职类词（工作体验 / 打工 / 加班 / 强度 / 待遇 /
+  薪酬 / 离职 / 跳槽 / 晋升 / 职级 / 从业）。原来清一色实习入口词，在职人讲工作
+  状态的笔记容易被判 irrelevant（`institution_keywords` 那层只看机构名兜底）。
+
+#### 定向博主：authors（2026-09-29 加）
+
+用户点名的账号放在 `config.yaml` 的 `xhs_socai.authors`，每轮**必抓**、
+选帖**优先**（`author_pick` 个名额，不够再用关键词卡补满）。
+
+| 小红书号 | 昵称 | user id |
+|---|---|---|
+| eco413 | 金融老兵（证券从业，1.3万粉，北京） | `583afd8d50c4b42ea3ec7400` |
+| 49628490145 | 固收民间科学家（固收·银行·资管，香港） | `68661d35000000001b023b26` |
+
+- ⚠️ **id 是主页 URL 里 `/user/profile/<id>` 的 24 位 hex，不是主页显示的「小红书号」。**
+  直接拿小红书号当 id 请求 `xhs author`，socai 会返回 `ok: true` 但 profile 全空的
+  **假成功** —— 极易误判成"该用户不存在"或"登录态失效"。
+- **定位 user id 的土办法**（两个号都是这么认出来的）：搜「<小红书号>」这个关键词，
+  结果页的用户卡片会渲染出「小红书号：xxx」（读 `page_ocr_text` 能看到），
+  同一份结果里对应卡片的 `author_id` 就是它。搜完再 `xhs author <id> --preview`
+  验证一遍 `xhs_id` 是否对得上。
+- 定向博主**不参与**「池子够用就跳过搜索」那套 `pool_min_fresh` 优化 ——
+  否则池子一满，人家新发的笔记要等 `pool_ttl_days` 过期才可能进来。
+- 选帖时同一张卡若既被搜索命中又在定向名单里，`origin` 会**升级为 author**（优先）。
+
+**候选池已按新取向重置**（2026-09-29）：旧池 241 张卡全是旧 queries 搜来的
+实习/校招取向内容，留着会挤占未来十几轮的选帖名额。备份在
+`data/pool/xhs.json.bak-旧取向-20260929`，可回滚。已抓过的笔记有 `seen.jsonl`
+兜底，不会重复抽取。
+
+**guard 日志已分家**（2026-09-30）：`browser_guard` 改写
+`data/logs/browser_guard.log`。原因：daily.bat 用 `>> cron.log` 重定向 guard 的
+stdout，句柄在整个运行期被 cmd 占着，guard 进程内 append **必然**
+PermissionError —— 重试没用（不是"偶发"，是 100%），退出前回写也没用（句柄
+还没放）。排查时两个日志都看：cron.log（流水线）+ browser_guard.log（窗口）。
+
+**隐身升级为 DWM Cloak**（2026-09-30）：之前只把窗口挪到屏幕外，Chrome 恢复
+窗口时会按「至少 30px 可见」弹回屏幕边缘，用户看见一条边以为电脑坏了。
+现在 `_park()` 在挪出屏幕之外再调 `DwmSetWindowAttribute(DWMWA_CLOAK)`，
+窗口从桌面、Alt+Tab 彻底消失，但 IsWindowVisible 仍为 TRUE、进程照常渲染。
+**实测不影响抓取**：cloak 下 get-notes + OCR 完整（连评论区截图文字都在），
+search 3 试 2 成（失败 1 次与当日 ~50% 间歇失败基线一致，与 cloak 无关）。
+若哪天抓取行为异常，先怀疑 cloak 与 Chrome 新版本的兼容性（探针：
+`browser_guard.py --probe` 会显示 cloak 状态）。
+
+**选帖加「职业信号」偏好**（_pick_cards 的 career_first）：定向博主的卡按
+「标题含职业词 > 赞数」排序后再建高赞池。固收民间科学家约 2/3 内容是技术
+科普（存单/回购/REITs 制度），抽取器必判 irrelevant —— 首轮 8 个定向名额只
+出 1 条事实。偏好排序让科普沉底但不清零（哪天他写真从业体验照样进池）。
+此类笔记被抽成 skip 属正常，不是 bug。
+
+**backfill_authors.py 自我保护**：检测到没被 guard 包住（环境变量
+`BROWSER_GUARD_ACTIVE != 1`）会自动重包一层再跑，防止再出现"手动跑脚本弹
+Chrome"的事故。
+
 ### 4.5 飞书凭据（已有，非阻塞）
 
 **凭据已存在于 `D:\xhs-teardown\config\feishu.local.json`**，2026-09-13 实测有效：
