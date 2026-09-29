@@ -286,6 +286,9 @@ h2{font-family:var(--serif);font-size:16px;margin:26px 0 10px}
 .bar.actual{background:var(--bar-real-bg);border-color:var(--bar-real-line);
  border-left-color:var(--accent)}
 .bar.actual h4{color:var(--bar-real-ink)}
+/* 知识笔记块：金色实底 —— 与「书面门槛」同族（都是金色系），但一眼能区分 */
+.bar.knowledge{background:var(--gold-bg);border-color:var(--gold-line)}
+.bar.knowledge h4{color:var(--gold-ink)}
 .bar p{font-size:12.5px;line-height:1.62;white-space:pre-wrap}
 .exp{margin-top:9px}
 .exp summary{cursor:pointer;font-size:11.5px;color:var(--accent);list-style:none}
@@ -411,9 +414,18 @@ def tab_css(topics):
 
 
 def render_fact(rec):
-    """一条事实（= 一个来源）一张卡片。"""
+    """一条事实（= 一个来源）一张卡片。
+
+    两类内容共用一套卡片骨架：
+      求职类  —— company 当标题，核心是两块门槛对照；
+      知识笔记 —— 2026-09-30 加。没有机构/岗位概念，note_title 当标题，
+                  knowledge_points 画成一块金色「可复习知识点」（没有门槛块）。
+    """
     itype = flat(rec.get("institution_type"))
     company = flat(rec.get("company"))
+    note_title = flat(rec.get("note_title"))
+    knowledge = flat(rec.get("knowledge_points"))
+    is_knowledge = (flat(rec.get("source_type")) == "knowledge")
     role = flat(rec.get("role"))
     dept = flat(rec.get("department"))
 
@@ -422,11 +434,17 @@ def render_fact(rec):
                 '<span class="fc-v%s">%s</span></div>'
                 % (esc(k), " hi" if hi else "", or_dash(v)))
 
-    # 头部：机构名 + 小标签（机构类型，词表见 schema.INSTITUTION_TYPES）
+    # 标题：求职类用机构名；知识笔记用笔记标题/主题
+    title = company or note_title
+    badges = []
+    if itype:
+        badges.append('<span class="badge">%s</span>' % esc(itype))
+    if is_knowledge:
+        badges.append('<span class="badge lv-implication">知识点</span>')
     head = ('<div class="fc-h">%s%s</div>'
             % ('<h3 class="co">%s</h3>'
-               % (esc(company) if company else '<span class="na">%s</span>' % EMPTY),
-               '<span class="badge">%s</span>' % esc(itype) if itype else ""))
+               % (esc(title) if title else '<span class="na">%s</span>' % EMPTY),
+               "".join(badges)))
 
     # 基础信息两列网格。薪资与强度走强调色 —— 扫卡片时这两个最先想看。
     grid = ('<div class="fc-grid">%s</div>'
@@ -435,15 +453,22 @@ def render_fact(rec):
                + field("薪资", flat(rec.get("salary")), hi=True)
                + field("强度", flat(rec.get("wlb")), hi=True)))
 
-    # ⚠️ 书面门槛与真实门槛是这个项目的核心差异点。
-    #    但绝不在这里算「落差 ↑↓」之类的判定列 —— 那等于 AI 脑补，
-    #    违反项目「无原文依据一律 null」的硬规则。判读权留给人。
-    bars = ('<div class="bars">'
-            '<div class="bar"><h4>书面门槛 recruiting_bar</h4><p>%s</p></div>'
-            '<div class="bar actual"><h4>真实门槛 actual_bar</h4><p>%s</p></div>'
-            '</div>'
-            % (or_dash(flat(rec.get("recruiting_bar"))),
-               or_dash(flat(rec.get("actual_bar")))))
+    # 知识笔记：没有门槛对照，主体是可复习的知识点（金色块）。
+    # 求职类照旧走书面 vs 真实两块对照 —— 这是项目的核心差异点，不能动。
+    if is_knowledge and knowledge:
+        body = ('<div class="bars">'
+                '<div class="bar knowledge"><h4>可复习知识点</h4><p>%s</p></div>'
+                '</div>' % esc(knowledge))
+    else:
+        # ⚠️ 书面门槛与真实门槛是这个项目的核心差异点。
+        #    但绝不在这里算「落差 ↑↓」之类的判定列 —— 那等于 AI 脑补，
+        #    违反项目「无原文依据一律 null」的硬规则。判读权留给人。
+        body = ('<div class="bars">'
+                '<div class="bar"><h4>书面门槛 recruiting_bar</h4><p>%s</p></div>'
+                '<div class="bar actual"><h4>真实门槛 actual_bar</h4><p>%s</p></div>'
+                '</div>'
+                % (or_dash(flat(rec.get("recruiting_bar"))),
+                   or_dash(flat(rec.get("actual_bar")))))
 
     exp = flat(rec.get("experience_summary"))
     exp_html = ('<details class="exp"><summary>经历摘要</summary><p>%s</p></details>'
@@ -459,7 +484,7 @@ def render_fact(rec):
             % (tags or '<span class="na">%s</span>' % EMPTY, src))
 
     return ('<article class="fc">%s%s%s%s%s</article>'
-            % (head, grid, bars, exp_html, foot))
+            % (head, grid, body, exp_html, foot))
 
 
 # --------------------------------------------------------------- 页面

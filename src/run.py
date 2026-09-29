@@ -80,6 +80,16 @@ def stage_fetch(sources, date_str):
             recs = fn()
         except Exception as e:
             LOG.error("抓取 %s 失败：%r", s, e)
+            # 登录失效是唯一需要人工介入的失败：发一条系统 toast（不是弹窗，
+            # 不抢焦点），提醒用户方便时跑 scripts\xhs_login.bat 扫码。
+            # 2026-09-30 与用户对齐：绝不为了扫码把 Chrome 窗口弹到桌面上。
+            if "xhs_login_required" in repr(e):
+                try:
+                    from notify import toast_login
+                    if toast_login():
+                        LOG.info("已发送系统通知（xhs_login.bat 扫码提醒）")
+                except Exception as te:
+                    LOG.warning("系统通知发送失败（不影响主流程）：%r", te)
             recs = []
         write_json(raw_path(date_str, s), recs)
         LOG.info("→ %s 抓取 %d 条", s, len(recs))

@@ -39,6 +39,11 @@
 - 纯新闻通稿、无求职视角信息 → `"irrelevant"`
 - 与金融求职完全无关 → `"off_topic"`
 
+**例外（2026-09-30 加）：金融知识笔记不算 off_topic。** CFA/FRM/CPA/考证/金融
+概念讲解/市场机制科普这类内容，按 `source_type: "knowledge"` 抽取 ——
+用 `note_title` 记主题，`knowledge_points` 整理出可复习的要点。
+但纯生活记录、美妆美食、旅行等真正的无关内容照常 skip。
+
 宁可 skip，不要硬凑字段。
 
 ---
@@ -68,6 +73,10 @@
 
   "experience_summary": "string|null — 经历摘要，3-5 句。**面试轮次、面试题目、留用/转正情况都写进这里**，不单独成字段。用原文事实，不加评论",
 
+  "note_title": "string|null — 笔记标题或内容主题。知识笔记（source_type=knowledge）必填；求职类笔记若原文明给标题可填，否则 null",
+
+  "knowledge_points": "string|null — 这篇笔记里**可复习的金融知识点**，3-8 条用「；」分隔，如 '久期是利率敏感性的一阶近似；凸性修正二阶误差'。只整理原文实际讲到的，不扩展不补充。非知识笔记为 null",
+
   "source_type": "enum — 见下方分类规则，必填",
   "published_at": "YYYY-MM-DD|null — 原文发布时间",
 
@@ -81,7 +90,8 @@
 
 > **字段数量刻意压到最少。** 上表的键**一个不多一个不少**，
 > 不要新增字段（如 `position`、`location`、`salary_unit`、`confidence`），
-> 也不要把已合并的内容再拆开。
+> 也不要把已合并的内容再拆开。（`note_title` / `knowledge_points` 是
+> 2026-09-30 为知识笔记新增的，属于表内字段。）
 
 ### `institution_type` 枚举
 
@@ -99,6 +109,7 @@
 | `job_posting` | 官方 JD、企业招聘页、招聘平台岗位 |
 | `media` | 媒体报道、行业新闻 |
 | `marketing` | 引流、课程推广、付费服务广告 |
+| `knowledge` | 金融知识笔记 / 科普：CFA·FRM·CPA 考点、概念讲解、市场机制科普（2026-09-30 加） |
 | `unknown` | 无法判断 |
 
 ### 文本字段的取值格式

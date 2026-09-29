@@ -93,7 +93,8 @@ REM  参数分隔：-- 之前是 guard 的选项，-- 之后才是要执行的�
 python "%ROOT%\scripts\browser_guard.py" --run -- python "%ROOT%\src\run.py" --stage all --source xhs >> "%LOG%" 2>&1
 if errorlevel 1 (
     echo [%date% %time%] run.py 失败（非零退出）。常见原因： >> "%LOG%"
-    echo     - socai 登录态失效：日志里搜「登录态失效」，需人工重新扫码 >> "%LOG%"
+    echo     - socai 登录态失效：日志里搜「登录态失效」。已发系统通知， >> "%LOG%"
+    echo       方便时双击 scripts\xhs_login.bat 扫码即可，下次运行自动恢复 >> "%LOG%"
     echo     - socai daemon/CDP 异常：见 data\logs\%TODAY%.log >> "%LOG%"
     echo     - LLM 上游不可用：搜「LLM 调用最终失败」 >> "%LOG%"
     echo     - 候选池空了且搜索失败：搜「没有未抓过的卡片」 >> "%LOG%"

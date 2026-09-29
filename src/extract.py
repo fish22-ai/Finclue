@@ -111,6 +111,7 @@ _SOURCE_TYPE_HINTS = [
     ("community", ["论坛", "社区", "讨论", "转述", "问答", "community"]),
     ("media", ["媒体", "新闻", "报道", "media"]),
     ("marketing", ["营销", "广告", "引流", "推广", "marketing"]),
+    ("knowledge", ["知识", "笔记", "科普", "复习", "考点", "knowledge"]),
 ]
 
 
@@ -133,6 +134,7 @@ def _map_source_type(v, allowed):
 TEXT_FIELDS = [
     "company", "department", "role", "city", "salary", "wlb",
     "recruiting_bar", "actual_bar", "experience_summary",
+    "note_title", "knowledge_points",
 ]
 
 # 已合并进其他字段的旧字段名 —— 模型若残留输出这些，归并后丢弃
@@ -314,6 +316,9 @@ def to_feishu_record(extracted, rec, date_str):
         "recruiting_bar": e.get("recruiting_bar"),
         "actual_bar": e.get("actual_bar"),
         "experience_summary": e.get("experience_summary"),
+        # 知识笔记没有机构概念，note_title / knowledge_points 是它们的主体
+        "note_title": e.get("note_title") or rec.get("title") or "",
+        "knowledge_points": e.get("knowledge_points"),
         # 方案 A：evidence 存 JSON 字符串，保留逐字段对应关系
         "evidence": json.dumps(e.get("evidence") or {}, ensure_ascii=False),
         "source_type": e.get("source_type") or "unknown",

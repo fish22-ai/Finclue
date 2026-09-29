@@ -25,7 +25,7 @@ RETURN_OFFER = ["yes", "no", "unclear", "na"]
 
 SOURCE_TYPES = [
     "first_hand", "career_account", "community",
-    "job_posting", "media", "marketing", "unknown",
+    "job_posting", "media", "marketing", "knowledge", "unknown",
 ]
 
 CONFIDENCE = ["high", "medium", "low"]
@@ -63,6 +63,13 @@ FACTS_FIELDS = [
     ("actual_bar", T_TEXT, None, "真实录取门槛 —— 与 recruiting_bar 严格分开"),
     ("experience_summary", T_TEXT, None,
      "经历摘要。含面试轮次与内容、留用/转正情况"),
+    # --- 2026-09-30 加：知识笔记（CFA/FRM 复习类）支持 ---
+    # 用户加了「收集 CFA 笔记」类博主，目标不只是求职情报，还要日常复习
+    # 金融知识。这类笔记没有机构/岗位概念，靠 note_title 当卡片标题、
+    # knowledge_points 承载可复习的要点。
+    ("note_title", T_TEXT, None, "笔记标题/主题。知识笔记用它当卡片标题"),
+    ("knowledge_points", T_TEXT, None,
+     "可复习的金融知识点，用「；」分隔。非知识笔记为 null"),
     ("source_url", T_URL, None, "业务幂等键"),
     ("tags", T_MULTI, TAG_OPTIONS, ""),
 
@@ -77,9 +84,9 @@ FACTS_FIELDS = [
 
 # 日常浏览需要看到的列（其余建议在飞书视图里隐藏）
 FACTS_VISIBLE = [
-    "date", "company", "institution_type", "department", "role", "city",
-    "salary", "wlb", "recruiting_bar", "actual_bar", "experience_summary",
-    "source_url", "tags",
+    "date", "company", "note_title", "institution_type", "department", "role",
+    "city", "salary", "wlb", "recruiting_bar", "actual_bar",
+    "experience_summary", "knowledge_points", "source_url", "tags",
 ]
 
 # 抽取结果里允许出现的键（用于过滤模型多输出的字段）
@@ -88,6 +95,7 @@ FACTS_KEYS = [f[0] for f in FACTS_FIELDS] + ["skip", "skip_reason"]
 # 需要校验「有值必须有 evidence」的字段
 EVIDENCE_REQUIRED = [
     "salary", "wlb", "recruiting_bar", "actual_bar", "experience_summary",
+    "knowledge_points",
 ]
 
 
