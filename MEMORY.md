@@ -147,16 +147,35 @@
 
 - Python 3.13.2（系统级，**无 conda**），路径 `AppData/Local/Programs/Python/Python313/python`
 - 已装：`requests 2.34` `beautifulsoup4 4.15` `lxml 6.1` `feedparser 6.0` `anthropic 1.4` `httpx2`
-- **未装**：`pyyaml`、`playwright`、`selenium`、`pandas`
+- **`pyyaml` 6.0.3：有**（2026-09-29 复核；此前这里记成「未装」是错的）
+  —— 这条不是小事：`src/common.py` 第一行就 `import yaml`，`daily.bat` 用的是
+  PATH 里的 `python`。**谁的 PATH 靠前就决定了流水线成不成**：系统 Python313 有
+  pyyaml，而 WorkBuddy 自带的 `~/.workbuddy/binaries/.../python` 没有
+  （在这个环境里跑 `daily.bat` 会直接 `ModuleNotFoundError: No module named 'yaml'`，
+  cron.log 里能看到完整 traceback）。排查「流水线莫名失败」时先确认这一条。
+- **未装**：`playwright`、`selenium`、`pandas`
 - Node v24.16.0 / npm 11.13 / git 2.54
-- 项目目录：`C:\Users\吃鱿鱼的鱿鱼\career-intel`
+- 项目目录：**`D:\吃鱿鱼的鱿鱼\career-intel`**（运行时副本，任务计划指向这里）。
+  `D:\吃鱿鱼的鱿鱼\finclue` 是另一份副本，已废弃、无 data/，别在里面改东西。
 
 ### 4.4 小红书抓取工具 socai（本机已装，已登录）
 
 **绝对路径**（不在 shell PATH 快照里，必须用绝对路径）：
 ```
-C:/Users/吃鱿鱼的鱿鱼/.socai/bin/socai.exe     # socai 0.5.4
+C:/Users/吃鱿鱼的鱿鱼/.socai/bin/socai.exe     # socai 0.6.1（2026-09-29 从 0.5.4 升级）
 ```
+
+> ⚠️ **版本下限 = 0.6.1（2026-09-29 实测）**：0.5.4 的 `xhs search` 全线失效 ——
+> 页面停在 `https://www.xiaohongshu.com/explore`，返回
+> `reason: "Search did not transition to a valid Xiaohongshu result page"`、0 张卡片，
+> **但 `login_required: false`**（登录态其实是好的）。这个报错极具误导性：cron.log 里
+> run.py 会把它归因成「登录态失效，需人工重新扫码」，照着做纯属白费力气。
+> 升级到 0.6.1 后同一查询立刻正常返回卡片。
+> **排查顺序：先 `socai version` 看 `status`，再怀疑登录态。**
+> Windows 升级方式：官方 install.ps1 会校验 sha256 后替换 `~/.socai/bin/`；
+> 手动做就是下载 `socai-cli-windows-x86_64.zip` + `.sha256`、校验、解压、替换
+> `socai.exe` 与 `socai-asr.exe`。替换前先 `socai stop` 并确认没有残留 socai.exe
+> 进程，否则报 WinError 32（文件被占用）。
 
 支持站点：`xhs`（小红书）、`dy`（抖音）。核心子命令：
 
@@ -198,6 +217,12 @@ socai xhs get-notes --note <NOTE_ID>=<XSEC_TOKEN> --ocr --num-comments 8 --prett
 - filter 分组：`sort` / `note_type` / `publish_time` / `search_scope` / `distance`
 - **`--ocr` 是必需的**：小红书金融内容大量在图片里（JD 截图、岗位表格）
 - 失败时 `output.json` 里 `reason: "login_required"` = 登录态失效，需重新扫码
+- **间歇性搜索失败（2026-09-29 实测，0.6.1）**：一轮里连续搜索时，前 3 次正常
+  （每次 20 张卡片），之后开始报 `Search did not transition to a valid Xiaohongshu
+  result page`，那次 8 个 query 里 4 个成功 4 个失败（约五成），疑似触发限流。
+  **不用慌**：候选池机制兜底 —— 那次池子从 185 张刷新到 241 张，未抓过 202 张，
+  照样抽 15 条取正文、抽出 10 条事实，整轮照常出刊。pool_ttl_days=4 让池子跨轮复用，
+  所以偶发失败不会导致空刊。若想更稳，可考虑失败重试或每次搜索之间停一下。
 - 卡片的 `likes` 是**字符串**，排序前要转 int
 
 **`get-notes` 能拿到的字段**（已验证）：
@@ -478,6 +503,23 @@ extract 14 次 = $0.0536，即**单次 $0.0038**（低 4 倍）；加 insight �
 | 设置 | `StartWhenAvailable`（开机补偿）+ `MultipleInstances IgnoreNew` + 2h 超时 + 失败重试 2 次×30min |
 | 诊断入口 | **`data/logs/cron.log`**（run.py 的日志也重定向到这里，搜索/取正文/抽取/写照全程都在） |
 | 手动强制重跑 | `scripts\daily.bat force`（绕过当日哨兵 `data/logs/.last_success`） |
+| 推送 | `scripts\push_site.py`（daily.bat 里跑完 run.py 自动调用；只提交 `docs/`） |
+
+**2026-09-29 补上「推送到 GitHub Pages」这一环。** 此前流水线**从不 push**：
+新一期只落在本地 `docs/`，GitHub Pages 一直停在 2026-09-20，手机上（PWA）永远
+等不到更新 —— 用户看到的症状是「更新次数比预期少」。现在 `daily.bat` 在 run.py
+成功后调用 `scripts/push_site.py`：只在 `docs/` 有变化时提交，且**只** `git add docs/`
+（`data/`、`config/` 是公开仓库的隐私边界，绝不全量暂存）。推送失败**不算**流水线
+失败（数据已落盘，别为一次网络抖动重跑整轮 LLM），只写进 cron.log 让人补推：
+`python scripts\push_site.py`。
+
+> ⚠️ **同一仓库有两份工作副本，别弄混**：
+> 真正在跑的是 **`D:\吃鱿鱼的鱿鱼\career-intel`**（有 `data/`，任务计划 `CareerIntel`
+> 注册的就是它）；`D:\吃鱿鱼的鱿鱼\finclue` 是 2026-09-21 做 PWA 时另开的副本，
+> **没有 data/，已废弃**。两份 remote 都指向 `fish22-ai/Finclue`。
+> 在 finclue 里 push 推不出新一期（它的 docs/ 永远不会长出新数据）。
+> 2026-09-29 已把 PWA 相关提交合回 career-intel。
+
 
 > 🔗 **联动约束（改一个必须改另一个）**：`config.yaml:pool_ttl_days` 必须**大于**运行间隔天数，
 > 否则候选池每次都被判过期、池子复用静默失效。因为改成 3 天跑一次，
