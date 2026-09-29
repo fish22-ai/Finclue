@@ -26,14 +26,26 @@ def log(msg):
     print("[push_site] %s" % msg, flush=True)
 
 
-def git(*args):
-    """跑一条 git，返回 (returncode, stdout+stderr)。"""
+def git(*args, **kw):
+    """跑一条 git，返回 (returncode, stdout+stderr)。返回 124 表示卡死超时。"""
     env = dict(os.environ)
-    # 没有交互终端，别让 git 卡在凭据提示上等 2 小时（daily.bat 里也是这个值）。
+    # 这是一条无人值守的链路，绝不能让它停下来等人：
+    #  - GIT_TERMINAL_PROMPT=0：不要往终端要用户名密码（daily.bat 里也是这个值）
+    #  - GCM_INTERACTIVE=never：本机 credential.helper 是 Git Credential Manager
+    #    的选择器（helper-selector），在无交互上下文里它会弹一个看不见的对话框
+    #    然后一直等 —— 2026-09-29 实测脚本就卡死在这里 5 分钟没动
     env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GCM_INTERACTIVE"] = "never"
+    timeout = kw.pop("timeout", 60)
+    try:
+        p = subprocess.run(["git"] + list(args), cwd=ROOT, env=env,
+                           stdin=subprocess.DEVNULL,
+                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return 124, "git %s 超时（%ss）—— 多半卡在凭据交互上" % (
+            args[0] if args else "?", timeout)
     # 输出按 UTF-8 收；分支名/路径里有中文也不会炸。
-    p = subprocess.run(["git"] + list(args), cwd=ROOT, env=env,
-                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     return p.returncode, p.stdout.decode("utf-8", "replace").strip()
 
 
@@ -74,7 +86,7 @@ def main():
     rc, branch = git("rev-parse", "--abbrev-ref", "HEAD")
     if rc != 0 or not branch:
         branch = "main"
-    rc, out = git("push", "origin", branch)
+    rc, out = git("push", "origin", branch, timeout=180)
     if rc != 0:
         log("git push 失败（手机上不会看到这一期）：%s" % out)
         log("网络恢复后手动补推：python scripts\\push_site.py")
