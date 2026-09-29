@@ -55,8 +55,10 @@ LOG = os.path.join(ROOT, "data", "logs", "cron.log")
 PROFILE_MARKS = (os.path.join(".socai", "chrome-profile"), ".socai/chrome-profile")
 SOCAI_EXE = os.path.join(os.path.expanduser("~"), ".socai", "bin", "socai.exe")
 
-# 扫描节奏：没发现浏览器时慢扫（省 CPU），一旦发现就快扫（新窗口/新标签尽快藏好）
-POLL_IDLE = 2.0
+# 扫描节奏：没发现浏览器时也不能太慢 —— Chrome 启动到显示窗口只有几百毫秒，
+# 慢一拍就会让窗口在桌面上闪一下。psutil 只在进程名是 chrome.exe 时才去读
+# cmdline，单次遍历约十几毫秒，1 秒一轮的代价可以忽略。
+POLL_IDLE = 1.0
 POLL_ACTIVE = 0.5
 # 窗口消失多久算浏览器真关了
 GONE_GRACE = 45
