@@ -93,6 +93,17 @@ if errorlevel 1 (
     exit /b 1
 )
 
+
+REM ---------- 推送站点（手机 PWA 靠这一步才有新一期） ------------------------
+REM  只提交 docs/（渲染产物）；data/ 与 config/ 在 .gitignore 里，privacy 边界。
+REM  推送失败**不算**流水线失败：数据已落盘，兜底是第二天人工补推，别为一次
+REM  网络抖动重跑整轮 LLM。手动补推：python scripts\push_site.py
+python "%ROOT%\scripts\push_site.py" >> "%LOG%" 2>&1
+if errorlevel 1 (
+    echo [%date% %time%] 站点推送失败 —— 手机上不会看到这一期。 >> "%LOG%"
+    echo     网络/凭据恢复后手动补推：python scripts\push_site.py >> "%LOG%"
+)
+
 > "%ROOT%\data\logs\.last_success" echo %TODAY%
 echo [%date% %time%] ===== 完成 ===== >> "%LOG%"
 exit /b 0
