@@ -229,6 +229,34 @@ socai xhs get-notes --note <NOTE_ID>=<XSEC_TOKEN> --ocr --num-comments 8 --prett
 `content`（正文全文）、`ocr_text[]`（逐图 OCR）、`top_comments[]`（含 replies）、
 `hashtags`、`author` / `author_id` / `author_url`、`location`、`image_count`、`type`、`date`
 
+#### 浏览器窗口全程隐藏（2026-09-29 加，别删）
+
+socai 抓 xhs **必须开一个有界面的 Chrome** —— 它没有 headless 选项
+（`socai config` 只认 `chrome.profile` / `chrome.profile_dir` / `runs.dir` /
+`cloud.base_url` 四个键，试 `chrome.headless` 会被明确拒绝），窗口会直接弹在桌面上。
+用户明确要求：工作时、尤其**视频面试**时被弹窗打断不可接受。
+
+`scripts/browser_guard.py` 负责这件事，`daily.bat` 里用它包住 run.py：
+
+```bat
+python "%ROOT%\scripts\browser_guard.py" --run -- python "%ROOT%\src\run.py" --stage all --source xhs
+```
+
+- **挪出屏幕，而不是最小化 / SW_HIDE**：窗口仍处于"可见"状态，`document.hidden`
+  不变真，rAF 与懒加载不受影响，CDP 输入跟正常抓取一致。
+  实测隐藏状态下 `xhs search` 照样拿到 10 张真实卡片。
+- 顺手设 `WS_EX_TOOLWINDOW` 摘掉任务栏图标（共享屏幕 / 录屏时不会露馅）。
+- **只认命令行带 `.socai\chrome-profile` 的 chrome.exe**：用户日常 Chrome 不带
+  `--user-data-dir`。实测 21 个 chrome 进程里 socai 的 12 个全关、替身 9 个一个没动。
+  **改这条匹配规则前务必想清楚：误杀用户的浏览器是灾难级事故。**
+- 收尾用 `WM_CLOSE` 优雅关闭（保住 profile 登录态），6 秒不退才 terminate；
+  关之前先 `socai stop`，免得 daemon 又把它拉起来。
+- 守护跑在独立线程，异常只记日志、不影响主流程；`psutil` 缺失时降级成
+  "直接跑子进程" —— 绝不因为隐藏窗口失败而让整条流水线跑不起来。
+- 注意 Chrome 会记住上次窗口位置（profile 里），但边界修正只保证 30px 可见，
+  所以必须**持续守护**，不能只靠"挪一次"。
+- 手动排查：`--probe`（看识别结果与窗口坐标）、`--cleanup`（手动收尾）。
+
 **已修复的坑**：`Chrome/User Data/DevToolsActivePort` 陈旧文件曾导致 socai 无限重试挂死，
 已备份为 `DevToolsActivePort.stale-backup-20260823`。若再次挂死，先检查这个文件。
 （**与坑 15 的管道挂死是两个不同故障**，症状像但根因无关。）

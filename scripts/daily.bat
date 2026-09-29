@@ -78,16 +78,26 @@ if not exist "C:\Users\吃鱿鱼的鱿鱼\.socai\bin\socai.exe" (
     exit /b 1
 )
 
-REM ---------- 跑流水线 -------------------------------------------------------
+REM ---------- 跑流水线（全程隐藏浏览器窗口） ---------------------------------
 REM  run.py 自己会在「抓取结果为 0 条」时以非零退出（见 run.py 的守卫），
 REM  所以 socai 登录态失效不会被当成静默成功。
-python "%ROOT%\src\run.py" --stage all --source xhs >> "%LOG%" 2>&1
+REM
+REM  外层套 browser_guard.py：socai 抓 xhs 必须开一个**有界面**的 Chrome
+REM  （socai 没有 headless 选项，config 只认 chrome.profile 等 4 个键），
+REM  窗口会直接弹在桌面上。2026-09-29 用户提出：工作时、尤其视频面试时
+REM  被弹窗打断不可接受。guard 把窗口挪到屏幕外并摘掉任务栏图标，run.py
+REM  结束后再关掉那份 Chrome —— 只认命令行带 .socai\chrome-profile 的进程，
+REM  绝不碰用户日常用的浏览器。
+REM  guard 失效也不阻塞流水线：它只是把子进程原样跑一遍，退出码原样透传。
+REM  参数分隔：-- 之前是 guard 的选项，-- 之后才是要执行的命令。
+python "%ROOT%\scripts\browser_guard.py" --run -- python "%ROOT%\src\run.py" --stage all --source xhs >> "%LOG%" 2>&1
 if errorlevel 1 (
     echo [%date% %time%] run.py 失败（非零退出）。常见原因： >> "%LOG%"
     echo     - socai 登录态失效：日志里搜「登录态失效」，需人工重新扫码 >> "%LOG%"
     echo     - socai daemon/CDP 异常：见 data\logs\%TODAY%.log >> "%LOG%"
     echo     - LLM 上游不可用：搜「LLM 调用最终失败」 >> "%LOG%"
     echo     - 候选池空了且搜索失败：搜「没有未抓过的卡片」 >> "%LOG%"
+    echo     - 浏览器窗口没藏住或没关掉：搜「browser_guard」 >> "%LOG%"
     echo     - 站点没更新：搜「渲染失败」。注意渲染是**非致命**的， >> "%LOG%"
     echo       它不会让本行触发；下次运行会重渲所有期，自己会补上 >> "%LOG%"
     exit /b 1
