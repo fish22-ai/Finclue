@@ -26,9 +26,11 @@ llm:
   model: deepseek-v4-flash
   # 该上游是推理模型，响应含 reasoning_content，会吃掉 max_tokens 预算
   # extract 给 8192：LinkedIn JD 正文较长，4096 会撞 finish_reason=length
+  # insight 给 32768：6 个主题 × 完整分析正文，8192 必被截断（2026-09-30 实测
+  #   输出正好打满 8192 导致 JSON 残缺、洞察全丢）。上游实测 32768 可用。
   max_tokens:
     extract: 8192
-    insight: 8192
+    insight: 32768
   temperature:
     extract: 0
     insight: 0.3

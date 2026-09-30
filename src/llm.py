@@ -165,6 +165,59 @@ def strip_json_fence(text):
     return text.strip()
 
 
+def salvage_json_array(text):
+    """从被截断的 JSON 文本里抢救出所有「完整的顶层元素」。
+
+    场景：模型输出 [{...},{...},{...  在第三个元素中途被 max_tokens 切断。
+    json.loads 全失败，rfind(']') 也救不回来（数组没闭合）。这里按字符扫描，
+    跟踪嵌套深度与字符串/转义状态，把深度回到 1 时结束的完整元素逐个解析出来。
+
+    返回 list（可能为空列表），完全找不到数组时返回 None。
+    """
+    if not text:
+        return None
+    start = text.find("[")
+    if start < 0:
+        return None
+
+    items, depth, in_str, esc = [], 0, False, False
+    buf_start = None
+    for i in range(start, len(text)):
+        c = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif c == "\\":
+                esc = True
+            elif c == '"':
+                in_str = False
+            continue
+        if c == '"':
+            in_str = True
+        elif c in "{[":
+            if depth == 1 and c == "{" and buf_start is None:
+                buf_start = i          # 顶层元素起点
+            depth += 1
+        elif c in "}]":
+            depth -= 1
+            if depth == 1 and buf_start is not None and c == "}":
+                chunk = text[buf_start:i + 1]
+                try:
+                    items.append(json.loads(chunk))
+                except ValueError:
+                    pass               # 该元素本身残缺，跳过
+                buf_start = None
+            elif depth == 0:
+                break                  # 数组正常闭合
+    # 只抢救标量数组（如 ["a","b"]）的情况
+    if not items:
+        try:
+            return json.loads(text[start:] + "]")
+        except ValueError:
+            pass
+    return items
+
+
 class LLM(object):
     def __init__(self, cfg=None):
         cfg = cfg or load_config()
@@ -188,7 +241,14 @@ class LLM(object):
             return json.loads(r.read().decode("utf-8"))
 
     def chat(self, system, user, max_tokens=4096, temperature=0.0, tag="llm"):
-        """返回 content 字符串。失败抛异常，由调用方决定是否跳过该条。"""
+        """返回 content 字符串。失败抛异常，由调用方决定是否跳过该条。
+
+        若因撞 max_tokens 被截断（finish_reason=length），不报错、返回残缺
+        文本并置 self.last_truncated=True —— 由 chat_json 决定能否抢救出
+        完整的前若干条，抢救不了才报错。截断在洞察这种「输出很长」的场景
+        很常见：reasoning_content 也吃预算，内容经常会断在数组中间。
+        """
+        self.last_truncated = False
         payload = {
             "model": self.model,
             "max_tokens": max_tokens,
@@ -206,6 +266,11 @@ class LLM(object):
                 choice = (r.get("choices") or [{}])[0]
                 content = (choice.get("message") or {}).get("content") or ""
                 finish = choice.get("finish_reason")
+                if finish == "length":
+                    # 不重试：同样预算重试还会截断，只会白烧钱
+                    self.last_truncated = True
+                    LOG.warning("LLM 输出被截断（finish_reason=length，"
+                                "max_tokens=%d）—— 尝试抢救完整的部分", max_tokens)
                 if not content.strip():
                     # 推理模型把预算吃完了 —— 这不是重试能解决的，直接报错
                     raise RuntimeError(
@@ -231,12 +296,19 @@ class LLM(object):
         try:
             return json.loads(raw)
         except ValueError:
-            # 常见：模型在 JSON 后加了说明文字，尝试截到最后一个 } 或 ]
-            for closer in ("}", "]"):
-                i = raw.rfind(closer)
-                if i > 0:
-                    try:
-                        return json.loads(raw[:i + 1])
-                    except ValueError:
-                        continue
-            raise ValueError("无法解析为 JSON：%s" % raw[:300])
+            pass
+        # 常见：模型在 JSON 后加了说明文字，尝试截到最后一个 } 或 ]
+        for closer in ("}", "]"):
+            i = raw.rfind(closer)
+            if i > 0:
+                try:
+                    return json.loads(raw[:i + 1])
+                except ValueError:
+                    continue
+        # 截断抢救：逐元素扫描顶层数组，返回所有「完整的对象」
+        salvaged = salvage_json_array(raw)
+        if salvaged is not None:
+            LOG.warning("JSON 被截断，已抢救出 %d 个完整元素（其余丢弃）",
+                        len(salvaged))
+            return salvaged
+        raise ValueError("无法解析为 JSON：%s" % raw[:300])

@@ -45,6 +45,13 @@ def load_prompt():
 
     tpl = md[user_start:].split("\n", 1)[1].strip()
     tpl = re.sub(r"^```[a-z]*\s*|\s*```$", "", tpl, flags=re.M).strip()
+    # USER 模板只到模板块为止 —— 后面的「## 输出后处理（代码层）」是给人看的
+    # 代码规格，不该喂给模型（既费 input token，又可能诱导它"配合校验"写更多）。
+    m2 = re.search(r"^---\s*$", tpl, re.M)
+    if m2:
+        tail = tpl[m2.end():].lstrip()
+        if tail.startswith("#"):
+            tpl = tpl[:m2.start()].rstrip()
     return system, tpl
 
 
@@ -213,14 +220,6 @@ def generate(window_days=None, dry_run=False):
 
     facts = read_facts(window_days)
     n_window = len(facts)
-    LOG.info("洞察分析：窗口 %d 天，%d 条事实", window_days, n_window)
-
-    if n_window == 0:
-        LOG.warning("窗口内没有事实数据 —— 所有主题将写入「数据不足」")
-
-    # n 取「真正喂进 prompt 的条数」，不是窗口里的总条数：超预算截断时两者不等，
-    # 而 n 要用来校准 validate_insight 的幻觉守卫与层级阈值。
-    facts_json, n = fit_json(facts)
     LOG.info("洞察分析：窗口 %d 天，%d 条事实", window_days, n_window)
 
     if n_window == 0:

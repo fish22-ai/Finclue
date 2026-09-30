@@ -97,6 +97,15 @@
 {{new_facts_json}}
 
 请对六个主题逐个分析，输出 JSON 数组。只输出 JSON，不要任何解释、不要 markdown 代码块标记。
+
+【输出长度硬约束 —— 必须遵守，否则整份输出会被截断丢弃】
+1. 六个主题**每个只输出一个对象**，不许多输出主题。
+2. `finding` ≤ 120 字；`why_it_matters` / `industry_implication` /
+   `career_implication` 各 ≤ 100 字；`ai_analysis` 是完整分析正文，
+   但**必须 ≤ 300 字**，保留四层推演的关键句即可，不要展开成小作文。
+3. `related_cases` 最多 5 项，每项 ≤ 20 字。
+4. 该主题数据不足时，只输出 `{"topic": "<主题>", "finding": "数据不足"}`，
+   其余字段留 `null` —— 不要为无数据的主题写分析。
 ```
 
 ---
