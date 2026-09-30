@@ -517,6 +517,11 @@ def harvest(source_cfg=None):
     authors = s.get("authors") or []
     author_num_notes = int(s.get("author_num_notes", 24))
     author_pick = int(s.get("author_pick", 5))
+    # 2026-09-30：作者预览会以约 50% 概率返回 page_access_failed，必须重试；
+    # 单次调用还要封顶（实测偶发卡 28 分钟）。
+    author_retries = max(1, int(s.get("author_retries", 3)))
+    author_timeout = int(s.get("author_timeout_seconds", 300))
+    retry_sleep = int(s.get("author_retry_sleep_seconds", 25))
 
     seen = load_seen()
     pool = load_pool()
@@ -530,6 +535,14 @@ def harvest(source_cfg=None):
     # 用户点名的博主内容命中率最高，所以**不参与**「池子够用就跳过搜索」那套优化 ——
     # 否则池子一满，人家新发的笔记要等 TTL 过期才可能进来。
     # 单次 preview 约 25s，几个号不到 1 分钟，代价可接受。
+    #
+    # ⚠️ 必须**重试**（2026-09-30 加）：作者主页 preview 会以约 50% 的概率
+    #    返回 `page_access_failed`（页面加载瞬时失败，不是登录失效 —— 实测同一轮里
+    #    前 5 个号全失败、第 6 个成功）。原来一次失败就跳过该博主，等于白丢一整轮，
+    #    新发的笔记要等下一次运行才可能进来。这里失败后退避重试
+    #    author_retries 次；仍然失败才放弃，并明确记 warning。
+    #    另外 author_timeout_seconds 给单次调用封顶 —— 实测偶发一次卡 28 分钟
+    #    （页面内部重试），把整轮时间拖垮。宁可早点放弃重来。
     if authors:
         for a in authors:
             aid = (a or {}).get("id") if isinstance(a, dict) else a
@@ -537,17 +550,27 @@ def harvest(source_cfg=None):
             if not aid:
                 continue
             LOG.info("定向博主：%s", label)
-            try:
-                cards, prof = author_cards(aid, author_num_notes, timeout)
-            except RuntimeError as e:
-                LOG.error("  终止：%s", e)
-                raise
+            cards, prof = [], {}
+            for attempt in range(1, author_retries + 1):
+                try:
+                    cards, prof = author_cards(aid, author_num_notes, author_timeout)
+                except RuntimeError as e:
+                    LOG.error("  终止：%s", e)
+                    raise
+                if cards:
+                    break
+                if attempt < author_retries:
+                    LOG.warning("  第 %d/%d 次没拿到卡片，%ds 后重试",
+                                attempt, author_retries, retry_sleep)
+                    time.sleep(retry_sleep)
             LOG.info("  主页 %s（粉丝 %s，收集 %d 张卡）",
                      prof.get("display_name") or "-",
                      prof.get("followers") or "-", len(cards))
             if not cards:
-                LOG.warning("  没拿到卡片 —— 确认 authors[].id 是主页 URL 里的 "
-                            "user id（24 位 hex），不是主页显示的「小红书号」")
+                LOG.warning("  重试 %d 次仍没拿到卡片 —— 若 profile 有名字说明是"
+                            "页面加载失败（下轮再试）；若 profile 全空则确认 "
+                            "authors[].id 是主页 URL 里的 user id（24 位 hex），"
+                            "不是主页显示的「小红书号」", author_retries)
             LOG.info("  新增入池 %d 张",
                      merge_pool(pool, cards, "author:%s" % aid,
                                 origin="author", author_id=aid))
