@@ -666,3 +666,70 @@ prompt 指纹失效、`--force` 注册），**没跑过真实 fetch** —— 用
 - `prompts/generate_insights.md` — 洞察生成 Prompt
 - `config.yaml` — 数据源与运行参数
 - **外部可复用资产**：`D:\xhs-teardown\`（8 月的同类项目，含 socai 采集脚本与飞书写入脚本）
+
+## 9. 2026-09-30 增量：登录无弹窗方案 + 知识笔记 + 作者扩编
+
+- **登录失效处理（不再弹 Chrome）**：抓取发现 `login_required` 立即 raise →
+  run.py 捕获后发 Windows 系统 toast（src/notify.py，走系统 Toast API），
+  提示用户方便时双击 `scripts\xhs_login.bat` 主动扫码。Chrome 全程隐身。
+  toast 用 -EncodedCommand（UTF-16LE）避免中文乱码；发送失败静默。
+- **知识笔记链路**：CFA/FRM/CPA 复习类不再被判 off_topic。
+  schema 增 `note_title` / `knowledge_points`（均需 evidence），
+  `source_type` 增 `knowledge`；渲染层知识卡 = note_title 标题 +
+  金色「可复习知识点」块。prompt 指纹变了，旧抽取缓存自动失效（预期行为）。
+- **resolve_authors.py**：小红书号/昵称 → 真实 user_id 自动解析
+  （搜索卡计数 + 逐个开主页验证 xhs_id 字段）。注意：11 位纯数字号若
+  搜索结果全是无关小号，说明该号搜不到（63804271801 两次均如此，待人工）。
+- **authors 扩到 7 个**（新增 guanchayuan7/8939926004/1060654173/600805759/
+  日月有双，全部经 xhs_id 验证）；`author_pick` 8→12（用户要求作者优先、
+  少按搜索词）；`num_comments` 8→10（用户点名要评论区，链路本来就在：
+  pipeline.py 把【评论区】拼进 LLM 输入）。
+
+## 10. 2026-09-30 第二轮：恢复气泡 / 右侧停靠 / 面试期不打扰
+
+- **「恢复之前关闭窗口」气泡**（用户左侧屏幕仍能看到）：根因是 guard 收尾
+  强杀 Chrome → profile 里 `exit_type: "Crashed"` → 下次启动弹气泡；而气泡是
+  带 owner 的 popup，被 `_windows_of` 的 owner 过滤漏掉，成了唯一露在屏幕上的窗口。
+  修法：① `_mark_clean_exit()` 在启动前/收尾后把 `exit_type`/`exited_cleanly`
+  写回干净（`--probe` 会打印这两个键）；② 隐身改用 `include_aux=True` 覆盖
+  气泡/弹出层；③ 停靠点改到虚拟桌面**右侧**外（`_offscreen_xy`）。
+- **`_cloaked()` 返回值不可信**（本机对已隐身窗口读回 False）——它只用于展示，
+  `park_all` 改为每轮轮询幂等补刀 `_cloak(True)`，不再依赖读值。
+- **作者页读取韧性**：`page_access_failed` 约 50% 概率（非登录失效），
+  `author_retries`/`author_retry_sleep_seconds` 退避重试，`author_timeout_seconds`
+  单次封顶 300s（实测偶发卡 28 分钟）。
+- **面试期不打扰**：`notify` 发通知前查 `SHQueryUserNotificationState`，
+  全屏/演示/忙碌/静默时段 → 不立刻发，转 detached 守候（≤6h）等结束再发。
+  登录失效同时落 `data/logs/login_needed.txt`；扫码（xhs_login.bat）或下一轮
+  成功（daily.bat）自动清除。
+
+## 11. 2026-09-30 第三轮：洞察输出被截断（整期 0 洞察）—— 已修
+
+- **症状**：2026-09-30 期渲染出「12 事实 / **0 洞察**」，日志里一行
+  `洞察生成失败：ValueError('无法解析为 JSON：...')`，用量显示 insight 输出
+  **正好 8192**（= 打满 max_tokens）。
+- **根因**：上游 `deepseek-v4-flash` 是**推理模型**，`reasoning_content` 与
+  `content` **共享** `max_tokens` 预算。洞察要「6 个主题 × finding +
+  why_it_matters + industry_implication + career_implication + ai_analysis
+  完整正文」，8192 根本不够 → JSON 断在数组中间 → `chat_json` 全失败 →
+  整期洞察丢弃（而 facts 是逐条抽取、单条小，8192 够用，所以只有洞察中招）。
+- **修法（双管齐下）**：
+  1. `config.yaml` → `llm.max_tokens.insight: 8192 → 32768`（实测上游接受
+     16384/32768，返回 finish=stop）。**任何"单次输出很长"的新阶段都要按
+     推理模型来估预算**，别按纯文本模型估。
+  2. `prompts/generate_insights.md` 加【输出长度硬约束】：finding ≤120 字、
+     ai_analysis ≤300 字、数据不足的主题只输出一行 —— 治本，减少输出体积。
+  3. `src/llm.py` 新增 `salvage_json_array()`：按字符扫描顶层数组（跟踪嵌套
+     深度 + 字符串/转义状态），把截断前**已完整**的元素抢救出来；
+     `chat()` 遇 `finish_reason=length` **不再重试**（同预算只会再截断，白烧钱）
+     而是置 `last_truncated` 交给 `chat_json` 抢救。以后长输出最多丢尾部。
+- **顺手清理**：`insight.generate()` 里有一段重复代码（`fit_json` 被调两次、
+  「洞察分析：窗口…」日志打两遍）；`load_prompt()` 的 USER 模板原来会把文件
+  末尾的「## 输出后处理（代码层）」规格一并喂给模型（费 token 且诱导模型
+  "配合校验"多写），已改为在 `---` + `#` 处截断。
+- **验证**：单跑 `--stage insight` → 6 条洞察（输出 6,889 tok，无截断），
+  再 `--stage render` + `push_site.py` 已发布（092e03b）。
+- **观察**：本期原始 15 条 → 抽取成功 12 条、skip 3 条（均为真带引流文案，
+  其中「手握两个固收offer」正文本身是广告但**评论区**有真实信息，
+  因整条判 marketing 被丢弃 —— 若后续想保留定向博主的评论区信息，需要
+  单独考虑"广告正文 + 有效评论"的处理策略，目前未改）。
