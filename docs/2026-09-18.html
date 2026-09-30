@@ -129,6 +129,9 @@ h2{font-family:var(--serif);font-size:16px;margin:26px 0 10px}
 .bar.actual{background:var(--bar-real-bg);border-color:var(--bar-real-line);
  border-left-color:var(--accent)}
 .bar.actual h4{color:var(--bar-real-ink)}
+/* 知识笔记块：金色实底 —— 与「书面门槛」同族（都是金色系），但一眼能区分 */
+.bar.knowledge{background:var(--gold-bg);border-color:var(--gold-line)}
+.bar.knowledge h4{color:var(--gold-ink)}
 .bar p{font-size:12.5px;line-height:1.62;white-space:pre-wrap}
 .exp{margin-top:9px}
 .exp summary{cursor:pointer;font-size:11.5px;color:var(--accent);list-style:none}
@@ -182,7 +185,7 @@ footer{margin-top:34px;padding-top:12px;border-top:1px solid var(--line);
 <header><span class="logo">★</span><div class="hd">
 <h1>FinClue <span class="cn">金线索</span></h1>
 </div></header>
-<nav class="archive"><a href="2026-09-29.html">2026-09-29</a><a href="2026-09-20.html">2026-09-20</a><a href="2026-09-18.html" class="cur">2026-09-18</a><a href="2026-09-13.html">2026-09-13</a></nav>
+<nav class="archive"><a href="2026-09-30.html">2026-09-30</a><a href="2026-09-29.html">2026-09-29</a><a href="2026-09-20.html">2026-09-20</a><a href="2026-09-18.html" class="cur">2026-09-18</a><a href="2026-09-13.html">2026-09-13</a></nav>
 <h2>本期洞察</h2>
 <div class="tabs"><input type="radio" name="ttab" id="tab-recruiting_bar" checked><input type="radio" name="ttab" id="tab-wlb"><input type="radio" name="ttab" id="tab-salary"><input type="radio" name="ttab" id="tab-hc_trend"><input type="radio" name="ttab" id="tab-interview"><input type="radio" name="ttab" id="tab-return_offer"><div class="tabbar"><label for="tab-recruiting_bar">招聘 Bar</label><label for="tab-wlb">WLB</label><label for="tab-salary">薪资</label><label for="tab-hc_trend">HC 趋势</label><label for="tab-interview">面试特征</label><label for="tab-return_offer">留用机会</label></div><div class="panels"><section class="panel" id="panel-recruiting_bar"><div class="tc-h"><span class="tc-name">招聘 Bar</span><span class="badge lv-pattern">Pattern</span><span class="ev">8 条支撑</span></div><p class="finding">同一细分赛道内部出现「入门实习 bar 低、正式/头部机构 bar 极高」的双轨现象：量化入门实习（金工组）仅要求高数/线代/概统+Python 够用，但量化暑期/正职的硬卡点是学历与竞赛（财经二本+985硕+三段量化实习仍 0 面邀，9本top2硕亦 0 offer）；一级买方实习对垂直经历弹性较大（某9本零一级实习拿到 PE 一面、纯商科靠内推进 PEVC），而二级卖方（债承）对垂直实习与在校时间冲突更敏感（无债券实习+有课被拒）。</p><details class="tc-d"><summary>展开分析</summary><dl><dt>为什么重要</dt><dd>候选人常见的误判是把「某一类金融岗位」当成单一门槛，实际上同一赛道的实习入口与正式入口之间存在数量级差异，用错标尺会同时浪费投递量和准备时间。</dd><dt>行业含义</dt><dd>量化机构以学历/竞赛作为高信噪比初筛工具，反映其无法在面试中低成本验证策略产出；一级买方岗位稀缺导致候选池背景高度集中在头部院校，筛选事实上前移到「能否拿到内推/信息差」环节。</dd><dt>对你的含义</dt><dd>先做赛道自评：走量化 → 学历/竞赛/单段可复用框架优先级高于刷实习段数；走一级 → 把精力放在内推与项目叙事（研究逻辑、壁垒、竞对）；走债承/固收 → 必须尽早拿到垂直实习并清空在校课程冲突。</dd><dt>个例</dt><dd>量化求职经验帖（数学经济本科非top2，准备一年获外资HF+内资百亿offer），券商研究所金工组实习路径帖，外资PE 大四一面（某9本，零一级实习），PEVC 纯商科背景内推帖，某头部券商债承实习（无债券实习+有课，未通过），量化暑期 0 offer 帖（财经二本+985硕，三段量化实习），26 Summer 求职记录（小 FA 候选池含北大/耶鲁/杜克/上交），长江证券行研→量化转正帖（0 基础转量化）</dd><dt>完整分析</dt><dd>【Fact】新增 8 条事实涉及招聘门槛：①量化求职帖写明「不需要那么fancy的背景」，但列出时间序列/概统/随机过程/回归+CS算法+ML/DL+Python（会C++加分）的清单，作者非top2/3、准备一年后拿到外资HF与内资百亿全职；②金工组帖称第一份量化实习「数学编程够用就行」，路径为因子—模型—策略；③外资PE 一面候选人自述某9本大四、行研/银行/量化实习但零相关一级/PE 经历，仍获面试且自评「比较轻松」；④PEVC 帖称纯商科背景靠学长学姐内推进入一级机构，一年 PEVC 实习；⑤某头部券商债承实习者有一段行研、无债券实习、学校还有课，自述未通过；⑥量化暑期求职者财经二本+985工科硕+三段量化实习（含头部私募/头部券商）基本零面邀；⑦投行求职帖披露某小 FA 候选人池含 3 北大、2 耶鲁、杜克、上交；⑧长江证券帖称转量化时 coding 不强、0 基础，先海投进「量化训练营」初创才起步。
 
