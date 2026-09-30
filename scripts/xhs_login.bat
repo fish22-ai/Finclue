@@ -30,6 +30,9 @@ echo  正在打开小红书，如果登录已失效，弹出的 Chrome 里会出
 echo  请用手机小红书 App 扫码登录。登录成功后这个命令会自己结束。
 echo.
 "C:\Users\吃鱿鱼的鱿鱼\.socai\bin\socai.exe" xhs search "测试" --preview --num-notes 1
+REM 登录标记（data\logs\login_needed.txt）：用户主动来扫码了就清掉它，
+REM 免得下次还提示；万一没扫成功，下一轮抓取失败时会重新写。
+if exist "data\logs\login_needed.txt" del "data\logs\login_needed.txt" >nul 2>&1
 echo.
 echo  命令已结束。如果上面输出了搜索结果卡片，说明登录态正常；
 echo  现在可以关掉 Chrome 窗口和本窗口了。

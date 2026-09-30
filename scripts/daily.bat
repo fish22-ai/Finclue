@@ -115,6 +115,9 @@ if errorlevel 1 (
     echo     网络/凭据恢复后手动补推：python scripts\push_site.py >> "%LOG%"
 )
 
+REM  登录标记：跑到这里说明整条流水线成功，登录态正常 —— 清掉失效标记
+if exist "%ROOT%\data\logs\login_needed.txt" del "%ROOT%\data\logs\login_needed.txt" >nul 2>&1
+
 > "%ROOT%\data\logs\.last_success" echo %TODAY%
 echo [%date% %time%] ===== 完成 ===== >> "%LOG%"
 exit /b 0

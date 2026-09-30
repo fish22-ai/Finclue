@@ -82,12 +82,18 @@ def stage_fetch(sources, date_str):
             LOG.error("抓取 %s 失败：%r", s, e)
             # 登录失效是唯一需要人工介入的失败：发一条系统 toast（不是弹窗，
             # 不抢焦点），提醒用户方便时跑 scripts\xhs_login.bat 扫码。
-            # 2026-09-30 与用户对齐：绝不为了扫码把 Chrome 窗口弹到桌面上。
+            # 2026-09-30 与用户对齐：绝不为了扫码把 Chrome 窗口弹到桌面上；
+            # 且若此刻系统处于全屏（面试/会议/演示），toast_login 会转入后台
+            # 守候，等结束再发 —— 用户原话「千万不要面试弹出来」。
             if "xhs_login_required" in repr(e):
                 try:
                     from notify import toast_login
-                    if toast_login():
+                    sent, deferred = toast_login()
+                    if sent:
                         LOG.info("已发送系统通知（xhs_login.bat 扫码提醒）")
+                    elif deferred:
+                        LOG.warning("当前疑似全屏（面试/演示），登录提醒已转入"
+                                    "后台守候，结束后再发")
                 except Exception as te:
                     LOG.warning("系统通知发送失败（不影响主流程）：%r", te)
             recs = []

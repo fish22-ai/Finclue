@@ -12,14 +12,15 @@ runs.dir / cloud.base_url 四个键），所以每次抓取都会在桌面上弹
 
 做法
 ----
-把窗口挪到**虚拟桌面左外侧**，而不是最小化或 SW_HIDE：
-  * SW_HIDE / 最小化会让 document.hidden 变真，rAF 和部分懒加载会暂停，
-    可能影响 socai 依赖的页面行为；
-  * 挪出屏幕后窗口仍处于"可见"状态，Chrome 的渲染与 CDP 输入跟用户正常
-    操作时完全一致，只是物理上不在任何显示器的可视区里。
-再把它标记成 WS_EX_TOOLWINDOW，让任务栏上也看不见 —— 共享屏幕 / 录屏时
-不会露出一个突兀的 Chrome 图标。这一步会 hide+show 一次窗口（几毫秒），
-所以包在 try 里，失败也不影响主流程。
+1) 把窗口挪到**虚拟桌面右外侧**（2026-09-29 先放左侧，2026-09-30 用户反馈左侧
+   仍能看到「恢复之前关闭窗口」气泡，改到右侧）；
+2) **DWM 隐身**（DWMWA_CLOAK）—— 比挪屏幕外彻底：窗口完全不渲染到屏幕，
+   Alt+Tab / 任务栏 / 误点都找不出来，但 IsWindowVisible 仍为 TRUE、进程照常跑
+   （不是最小化，不触发 document.hidden / rAF 节流）；
+3) 隐身覆盖**全部**属于 socai Chrome 的窗口，包含气泡/弹出层 —— 恢复气泡那种
+   带 owner 的 popup 曾是最初唯一漏网、唯一露在屏幕上的东西；
+4) 启动前把 profile 标记为「正常退出」（_mark_clean_exit），从源头抑制
+   Chrome 的「恢复之前关闭窗口」气泡。
 
 安全边界
 --------
@@ -40,6 +41,7 @@ from __future__ import annotations
 
 import ctypes
 import ctypes.wintypes as wt
+import json
 import os
 import subprocess
 import sys
@@ -134,8 +136,16 @@ def socai_chrome_pids() -> list[int]:
     return pids
 
 
-def _windows_of(pids: set[int]) -> list[int]:
-    """属于这些 PID 的顶层可见窗口（排除弹出层和无标题的辅助窗口）。"""
+def _windows_of(pids: set[int], include_aux: bool = False) -> list[int]:
+    """属于这些 PID 的顶层窗口。
+
+    include_aux=False（主窗口）：排除弹出层与无标题辅助窗口 —— 只有它们是
+        「用户可操作的那个浏览器窗口」。
+    include_aux=True（全部）：**连弹出层/无标题气泡一起收**，
+        2026-09-30 用户反馈「还是能看见『恢复之前关闭窗口』的弹窗」——
+        那个恢复气泡是带 owner 的 popup，被上面的过滤规则漏掉了，只有它露在
+        屏幕上。隐身必须覆盖全部窗口，过滤只用于「关窗口」这类需要挑主窗的场景。
+    """
     found: list[int] = []
 
     def _cb(hwnd, _lparam):
@@ -145,10 +155,16 @@ def _windows_of(pids: set[int]) -> list[int]:
         user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         if pid.value not in pids:
             return True
-        if user32.GetWindow(hwnd, GW_OWNER) != 0:  # 有 owner = 弹出层，不是主窗口
-            return True
-        if user32.GetWindowTextLengthW(hwnd) == 0:
-            return True
+        if not include_aux:
+            if user32.GetWindow(hwnd, GW_OWNER) != 0:  # 有 owner = 弹出层
+                return True
+            if user32.GetWindowTextLengthW(hwnd) == 0:
+                return True
+        else:
+            # 全部模式仍要排除零尺寸的隐形占位窗口，否则每轮刷一堆无意义日志
+            left, top, w, h = _rect(hwnd)
+            if w <= 1 or h <= 1:
+                return True
         found.append(hwnd)
         return True
 
@@ -170,11 +186,16 @@ def _rect(hwnd: int) -> tuple[int, int, int, int]:
 
 
 def _offscreen_xy() -> tuple[int, int]:
-    """整个虚拟桌面左外侧的一个点（多显示器也保证在可视区之外）。"""
+    """整个虚拟桌面**右外侧**的一个点（多显示器也保证在可视区之外）。
+
+    2026-09-29 原本放左侧；2026-09-30 用户反馈左侧仍能看到 Chrome 的
+    「恢复之前关闭窗口」气泡（那个气泡按父窗口位置就近吸附，落到了最左边那块屏
+    的边缘上）。改为右侧外侧 + 全面隐身（见 _windows_of 的 include_aux）。
+    """
     vx = user32.GetSystemMetrics(SM_XVIRTUALSCREEN)
     vy = user32.GetSystemMetrics(SM_YVIRTUALSCREEN)
     vw = user32.GetSystemMetrics(SM_CXVIRTUALSCREEN)
-    return vx - vw - 200, vy
+    return vx + vw + 200, vy
 
 
 def _cloak(hwnd: int, on: bool = True) -> bool:
@@ -187,12 +208,21 @@ def _cloak(hwnd: int, on: bool = True) -> bool:
     return rc == 0
 
 
-def _cloaked(hwnd: int) -> bool:
+def _cloaked(hwnd: int):
+    """读取 DWM 隐身状态。真 / 假 / **None＝读不到**（接口不支持或调用失败）。
+
+    注意：DWMWA_CLOAK 的读取在部分 Windows 版本上直接失败（2026-09-30 实测
+    本机对已隐身的窗口读回 False）。所以这个值只能当参考，**不能**用来判断
+    「要不要再隐一次」—— 那会让 park_all 永远认为没隐好。真正的做法是每次
+    轮询都幂等地补一刀 _cloak(True)（DWM 调用很便宜）。
+    """
     if dwmapi is None:
-        return False
+        return None
     val = ctypes.c_int(0)
-    dwmapi.DwmGetWindowAttribute(wt.HWND(hwnd), DWMWA_CLOAK,
-                                 ctypes.byref(val), ctypes.sizeof(val))
+    rc = dwmapi.DwmGetWindowAttribute(wt.HWND(hwnd), DWMWA_CLOAK,
+                                      ctypes.byref(val), ctypes.sizeof(val))
+    if rc != 0:
+        return None
     return bool(val.value)
 
 
@@ -218,20 +248,28 @@ def _park(hwnd: int, x: int, y: int) -> bool:
 
 
 def park_all(verbose: bool = True) -> int:
-    """把所有 socai Chrome 窗口挪出去，返回处理的窗口数。"""
+    """把所有 socai Chrome 窗口（含气泡/弹出层）挪出去 + 隐身。
+
+    返回处理的窗口数。注意这里用 include_aux=True —— 「恢复之前关闭窗口」这类
+    气泡必须一起收，否则它就是唯一露在屏幕上的东西（2026-09-30 用户实测反馈）。
+    """
     pids = socai_chrome_pids()
     if not pids:
         return 0
     x, y = _offscreen_xy()
     n = 0
-    for hwnd in _windows_of(set(pids)):
+    for hwnd in _windows_of(set(pids), include_aux=True):
         left, top, w, h = _rect(hwnd)
-        if verbose and abs(left - x) <= 8:
-            continue  # 已经在屏幕外了，不重复刷日志
+        if abs(left - x) <= 8:
+            # 位置已在屏外：**静默补一刀隐身**再走。原因：读取 cloak 状态的接口
+            # 不可靠（见 _cloaked），而且 Chrome 在页面跳转/窗口重排时可能重置
+            # 该属性 —— 幂等重设是唯一稳的写法，DWM 调用开销可忽略。
+            _cloak(hwnd, True)
+            continue
         if _park(hwnd, x, y):
             n += 1
-            log("已把 socai Chrome 窗口移出屏幕：%r %dx%d -> (%d, %d)"
-                % (_window_text(hwnd)[:40], w, h, x, y))
+            log("已把 socai Chrome 窗口移出屏幕：%r %dx%d @(%d,%d) -> (%d, %d)"
+                % (_window_text(hwnd)[:40] or "<无标题/气泡>", w, h, left, top, x, y))
     return n
 
 
@@ -289,6 +327,63 @@ def cleanup(wait: float = 6.0) -> int:
 
 
 # --------------------------------------------------------------------------
+# 掐掉「恢复之前关闭窗口」气泡
+# --------------------------------------------------------------------------
+def _default_pref_path():
+    return os.path.join(os.path.expanduser("~"), ".socai", "chrome-profile",
+                        "Default", "Preferences")
+
+
+def _mark_clean_exit(path: str = None) -> bool:
+    """把 socai Chrome profile 标记为「上次正常退出」。
+
+    为什么需要：guard 收尾时若 WM_CLOSE 超时，会降到 terminate()（强杀），
+    Chrome 就把上次退出记为崩溃，**下次启动弹「恢复之前关闭窗口」气泡**。
+    那个气泡是带 owner 的 popup，历史上不在我们的隐身名单里 —— 2026-09-30
+    用户就是被它露出来的（主窗口已隐身，只有气泡可见）。实测确认当时 profile
+    里就是 `exit_type: "Crashed"`。
+
+    双保险：① 每次启动子进程前先把 profile 改回干净状态（气泡根本不出现）；
+    ② 收尾后再写一次（让下一次启动也是干净的）。Chrome 在启动时会读这两个键
+    决定是否弹恢复气泡。
+
+    path 参数只为可测试（用临时文件跑单测），生产调用不传。
+    """
+    p = path or _default_pref_path()
+    if not os.path.isfile(p):
+        return False
+    try:
+        with open(p, encoding="utf-8") as f:
+            d = json.load(f)
+        if not isinstance(d, dict):
+            return False
+    except (OSError, ValueError) as e:
+        log("读 Chrome Preferences 失败（跳过）：%r" % (e,))
+        return False
+
+    prof = d.setdefault("profile", {})
+    if prof.get("exit_type") == "Normal" and prof.get("exited_cleanly") is True:
+        return False
+    prof["exit_type"] = "Normal"
+    prof["exited_cleanly"] = True
+    d.pop("crashed", None)
+    tmp = p + ".guard.tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(d, f)
+        os.replace(tmp, p)
+        log("已把 Chrome profile 标记为正常退出（抑制恢复气泡）")
+        return True
+    except OSError as e:
+        log("写 Chrome Preferences 失败（跳过）：%r" % (e,))
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        return False
+
+
+# --------------------------------------------------------------------------
 # --run：守窗口 -> 跑子进程 -> 收尾
 # --------------------------------------------------------------------------
 def _watch_loop(stop: threading.Event) -> None:
@@ -314,6 +409,7 @@ def cmd_run(child: list[str], child_timeout: int) -> int:
     if not child:
         log("--run 后面要跟子命令")
         return 2
+    _mark_clean_exit()   # 先把 profile 标干净：Chrome 启动时不弹「恢复之前关闭窗口」
     stop = threading.Event()
     t = threading.Thread(target=_watch_loop, args=(stop,), daemon=True)
     t.start()
@@ -337,6 +433,7 @@ def cmd_run(child: list[str], child_timeout: int) -> int:
         stop.set()
         t.join(timeout=5)
         cleanup()
+        _mark_clean_exit()   # 收尾再写一次，下一次启动也不会弹恢复气泡
 
     log("流水线退出码 %d" % rc)
     return rc
@@ -347,16 +444,28 @@ def cmd_probe() -> int:
     print("socai Chrome 进程：%s" % (pids or "无"))
     if pids:
         x, y = _offscreen_xy()
-        print("目标屏幕外坐标：(%d, %d)" % (x, y))
-        for hwnd in _windows_of(set(pids)):
+        print("目标屏外坐标（右侧外侧）：(%d, %d)" % (x, y))
+        main = set(_windows_of(set(pids)))
+        for hwnd in _windows_of(set(pids), include_aux=True):
             left, top, w, h = _rect(hwnd)
-            print("  窗口 0x%X %r  %dx%d @ (%d, %d)  屏幕外=%s  已隐身(cloak)=%s"
-                  % (hwnd, _window_text(hwnd)[:40], w, h, left, top,
-                     abs(left - x) <= 8, _cloaked(hwnd)))
+            print("  窗口 0x%X %-22r %dx%d @ (%d, %d)  屏外=%s  已隐身=%s  %s"
+                  % (hwnd, _window_text(hwnd)[:20], w, h, left, top,
+                     abs(left - x) <= 8, _cloaked(hwnd),
+                     "主窗口" if hwnd in main else "气泡/弹出层"))
     all_chrome = [p.info["pid"] for p in psutil.process_iter(["pid", "name"])
                   if (p.info["name"] or "").lower() == "chrome.exe"]
     print("本机 chrome.exe 总数：%d（其中 socai 的 %d 个）"
           % (len(all_chrome), len(pids)))
+    pref = os.path.join(os.path.expanduser("~"), ".socai", "chrome-profile",
+                        "Default", "Preferences")
+    try:
+        with open(pref, encoding="utf-8") as f:
+            d = json.load(f)
+        pr = d.get("profile") or {}
+        print("profile.exit_type=%r exited_cleanly=%r（Normal/True 才不弹恢复气泡）"
+              % (pr.get("exit_type"), pr.get("exited_cleanly")))
+    except (OSError, ValueError) as e:
+        print("读 Preferences 失败：%r" % (e,))
     return 0
 
 
